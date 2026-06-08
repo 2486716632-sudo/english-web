@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Word {
+  id           Int          @id @default(autoincrement())
+  word         String
+  phonetic     String?
+  partOfSpeech String
+  definition   String
+  collocations String?
+  example      String?
+  exampleZh    String?
+  imageUrl     String?
+  theme        String?
+  difficulty   String       @default("IELTS")
+  source       String       @default("built-in")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  reviews      WordReview[]
+}
+
+model WordReview {
+  id             Int      @id @default(autoincrement())
+  word           Word     @relation(fields: [wordId], references: [id])
+  wordId         Int
+  interval       Int      @default(0)
+  easiness       Float    @default(2.5)
+  repetitions    Int      @default(0)
+  nextReviewAt   DateTime @default(now())
+  lastReviewedAt DateTime?
+  isMastered     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([wordId])
+}
+
+model DailyProgress {
+  id              Int      @id @default(autoincrement())
+  date            DateTime
+  newWordsAdded   Int      @default(0)
+  wordsReviewed   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Article {
+  id          Int           @id @default(autoincrement())
+  title       String
+  titleZh     String?
+  url         String?
+  imageUrl    String?
+  source      String
+  sourceEmoji String        @default("📰")
+  content     String
+  summary     String
+  summaryEn   String?
+  difficulty  Int           @default(3)
+  tags        String
+  createdAt   DateTime      @default(now())
+  vocabItems  ArticleVocab[]
+}
+
+model ArticleVocab {
+  id              Int      @id @default(autoincrement())
+  articleId       Int
+  word            String
+  type            String   @default("word")   // word / phrase / expression
+  partOfSpeech    String?
+  phonetic        String?
+  definition      String
+  contextSentence String
+  example         String?
+  exampleZh       String?
+  addedToReview   Boolean  @default(false)
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}

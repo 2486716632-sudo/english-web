@@ -24,3 +24,182 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== Book page flip — one page flips from right to left over the spine ===== */
+.flip-page { transform-origin: 12px center; transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.group:hover .flip-page { transform: scaleX(-1); opacity: 0.5; }
+
+/* ===== Mic sound wave — appear & pulse on hover ===== */
+.wave-bar { transform-origin: bottom; opacity: 0; transition: opacity 0.25s ease; }
+.group:hover .wave-bar { opacity: 1; }
+.group:hover .wave-bar:nth-child(1) { animation: wave 0.5s ease-in-out infinite; animation-delay: 0s; }
+.group:hover .wave-bar:nth-child(2) { animation: wave 0.5s ease-in-out infinite; animation-delay: 0.08s; }
+.group:hover .wave-bar:nth-child(3) { animation: wave 0.5s ease-in-out infinite; animation-delay: 0.16s; }
+.group:hover .wave-bar:nth-child(4) { animation: wave 0.5s ease-in-out infinite; animation-delay: 0.24s; }
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+/* ===== YouTube play pulse ===== */
+.play-triangle { transition: transform 0.3s ease; }
+.play-ring { transform-origin: center; transition: all 0.3s ease; }
+.group:hover .play-triangle { transform: scale(1.15); }
+.group:hover .play-ring:nth-child(1) { animation: pulse-ring 1s ease-out infinite; }
+.group:hover .play-ring:nth-child(2) { animation: pulse-ring 1s ease-out infinite; animation-delay: 0.3s; }
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ===== Document page lift ===== */
+.doc-page { transform-origin: bottom left; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.doc-line { transition: all 0.3s ease; }
+.group:hover .doc-page { transform: rotate(-12deg) translateY(-1px); }
+.group:hover .doc-line:nth-child(2) { transform: translateX(2px); opacity: 0.6; }
+.group:hover .doc-line:nth-child(3) { transform: translateX(1px); opacity: 0.8; }
+
+/* ===== Card icon container ===== */
+.icon-container { transition: all 0.3s ease; }
+.group:hover .icon-container { transform: scale(1.05); }
+
+/* ===== Vocabulary page entrance animations ===== */
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-header { animation: fade-slide-up 0.7s cubic-bezier(0.21, 0.89, 0.32, 1) forwards; }
+.animate-card-1 { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.15s forwards; }
+.animate-card-2 { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.3s forwards; }
+
+/* ===== Vocabulary page book icon + title staggered entrance ===== */
+@keyframes book-appear {
+  0% { opacity: 0; transform: scale(0.7) rotate(-12deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.animate-book-icon { opacity: 0; animation: book-appear 0.9s cubic-bezier(0.21, 0.89, 0.32, 1) 0.1s forwards; }
+.animate-vocab-title { opacity: 0; animation: fade-slide-up 0.7s cubic-bezier(0.21, 0.89, 0.32, 1) 0.25s forwards; }
+.animate-vocab-subtitle { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.4s forwards; }
+
+/* ===== Staggered item entrance (for Word Packs grid) ===== */
+.animate-item { opacity: 0; animation: fade-slide-up 0.5s cubic-bezier(0.21, 0.89, 0.32, 1) forwards; }
+.animate-item:nth-child(1) { animation-delay: 0.05s; }
+.animate-item:nth-child(2) { animation-delay: 0.1s; }
+.animate-item:nth-child(3) { animation-delay: 0.15s; }
+.animate-item:nth-child(4) { animation-delay: 0.2s; }
+.animate-item:nth-child(5) { animation-delay: 0.25s; }
+.animate-item:nth-child(6) { animation-delay: 0.3s; }
+.animate-item:nth-child(7) { animation-delay: 0.35s; }
+.animate-item:nth-child(8) { animation-delay: 0.4s; }
+.animate-item:nth-child(9) { animation-delay: 0.45s; }
+.animate-item:nth-child(10) { animation-delay: 0.5s; }
+.animate-item:nth-child(11) { animation-delay: 0.55s; }
+.animate-item:nth-child(12) { animation-delay: 0.6s; }
+.animate-item:nth-child(13) { animation-delay: 0.65s; }
+.animate-item:nth-child(14) { animation-delay: 0.7s; }
+.animate-item:nth-child(15) { animation-delay: 0.75s; }
+.animate-item:nth-child(16) { animation-delay: 0.8s; }
+.animate-item:nth-child(17) { animation-delay: 0.85s; }
+.animate-item:nth-child(18) { animation-delay: 0.9s; }
+.animate-item:nth-child(19) { animation-delay: 0.95s; }
+.animate-item:nth-child(20) { animation-delay: 1s; }
+
+/* ===== Vocabulary card hover lift ===== */
+.vocab-card {
+  transition: transform 0.4s cubic-bezier(0.21, 0.89, 0.32, 1),
+              box-shadow 0.4s cubic-bezier(0.21, 0.89, 0.32, 1);
+}
+.vocab-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 48px -12px rgba(0,0,0,0.15) !important;
+}
+.vocab-card:hover .vocab-card-arrow {
+  transform: translateX(8px);
+  opacity: 1;
+}
+.vocab-card-arrow {
+  transition: transform 0.4s cubic-bezier(0.21, 0.89, 0.32, 1),
+              opacity 0.4s ease;
+}
+.vocab-card .vocab-card-icon {
+  transition: transform 0.5s cubic-bezier(0.21, 0.89, 0.32, 1),
+              box-shadow 0.4s ease;
+}
+.vocab-card:hover .vocab-card-icon {
+  transform: scale(1.12) rotate(-4deg);
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.12);
+}
+.vocab-card:hover .vocab-card-icon svg {
+  transform: scale(1.1);
+}
+.vocab-card .vocab-card-icon svg {
+  transition: transform 0.5s cubic-bezier(0.21, 0.89, 0.32, 1);
+}
+
+/* ===== Theme card hover lift (Word Packs) ===== */
+.theme-card {
+  transition: transform 0.35s cubic-bezier(0.21, 0.89, 0.32, 1),
+              box-shadow 0.35s cubic-bezier(0.21, 0.89, 0.32, 1);
+}
+.theme-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px -8px rgba(0,0,0,0.1) !important;
+}
+.theme-card .theme-emoji {
+  display: inline-block;
+  transition: transform 0.4s cubic-bezier(0.21, 0.89, 0.32, 1);
+}
+.theme-card:hover .theme-emoji {
+  transform: scale(1.2) rotate(-5deg);
+}
+.theme-card .theme-title {
+  transition: transform 0.35s cubic-bezier(0.21, 0.89, 0.32, 1),
+              color 0.35s ease;
+}
+.theme-card:hover .theme-title {
+  transform: translateX(4px);
+}
+.theme-card .theme-subtitle {
+  transition: transform 0.35s cubic-bezier(0.21, 0.89, 0.32, 1),
+              color 0.35s ease;
+}
+.theme-card:hover .theme-subtitle {
+  transform: translateX(4px);
+}
+.theme-card .theme-wordlist-link {
+  background-color: #4A4A4A;
+  transition: all 0.3s cubic-bezier(0.21, 0.89, 0.32, 1);
+}
+.theme-card:hover .theme-wordlist-link {
+  background-color: #5A5A5A !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px -4px rgba(0,0,0,0.25);
+}
+
+/* ===== AI Coach message animation ===== */
+.animate-in { animation: msg-in 0.4s cubic-bezier(0.21, 0.89, 0.32, 1) forwards; }
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ===== AI Coach hero entrance ===== */
+.coach-search { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.05s forwards; }
+.coach-badge { opacity: 0; animation: fade-slide-up 0.5s cubic-bezier(0.21, 0.89, 0.32, 1) 0.15s forwards; }
+.coach-title { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.25s forwards; }
+.coach-desc { opacity: 0; animation: fade-slide-up 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) 0.35s forwards; }
+.coach-cta { opacity: 0; animation: fade-slide-up 0.5s cubic-bezier(0.21, 0.89, 0.32, 1) 0.45s forwards; }
+.coach-image { opacity: 0; animation: fade-in 0.8s cubic-bezier(0.21, 0.89, 0.32, 1) 0.55s forwards; }
+
+/* ===== AI Coach session entrance ===== */
+.coach-banner { opacity: 0; animation: fade-slide-up 0.4s cubic-bezier(0.21, 0.89, 0.32, 1) 0.1s forwards; }
+.coach-panel-item { opacity: 0; animation: fade-slide-up 0.5s cubic-bezier(0.21, 0.89, 0.32, 1) forwards; }
+.coach-panel-item:nth-child(1) { animation-delay: 0.15s; }
+.coach-panel-item:nth-child(2) { animation-delay: 0.3s; }
+.coach-panel-item:nth-child(3) { animation-delay: 0.45s; }

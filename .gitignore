@@ -36,6 +36,18 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude
+.claude/
+
+# temp
+tmp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# database
+dev.db
+prisma/ecdict/stardict.db
