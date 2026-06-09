@@ -19,7 +19,8 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - run: npm ci
+      - run: npm install
+      - run: npx prisma generate
 
       - run: npx tsx scripts/reading-push.ts
         env:
