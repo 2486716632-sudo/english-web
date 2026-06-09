@@ -1,0 +1,28 @@
+name: Daily Reading Push
+
+on:
+  schedule:
+    # 4 times daily: 6am, 10am, 2pm, 6pm UTC → 2pm, 6pm, 10pm, 2am Beijing
+    - cron: '0 6,10,14,18 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub UI
+
+jobs:
+  push-reading:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npx tsx scripts/reading-push.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          MAX_PER_RUN: ${{ vars.MAX_PER_RUN }}

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (queue === 'new') {
     const excludeArr = [...excludeIds]
     const fresh = await prisma.$queryRaw<Array<{ id: number; word: string; phonetic: string | null; partOfSpeech: string; definition: string; collocations: string | null; example: string | null; exampleZh: string | null; imageUrl: string | null; theme: string | null; difficulty: string; source: string; createdAt: Date; updatedAt: Date }>>`
-      SELECT * FROM Word
+      SELECT * FROM "Word"
       WHERE source = 'ielts' AND theme IS NULL
       ${excludeArr.length > 0 ? Prisma.sql`AND id NOT IN (${Prisma.join(excludeArr)})` : Prisma.empty}
       ORDER BY RANDOM()
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
   if (remaining > 0) {
     const excludeArr = [...excludeIds]
     const fresh = await prisma.$queryRaw<Array<{ id: number; word: string; phonetic: string | null; partOfSpeech: string; definition: string; collocations: string | null; example: string | null; exampleZh: string | null; imageUrl: string | null; theme: string | null; difficulty: string; source: string; createdAt: Date; updatedAt: Date }>>`
-      SELECT * FROM Word
+      SELECT * FROM "Word"
       WHERE source = 'ielts' AND theme IS NULL
       ${excludeArr.length > 0 ? Prisma.sql`AND id NOT IN (${Prisma.join(excludeArr)})` : Prisma.empty}
       ORDER BY RANDOM()

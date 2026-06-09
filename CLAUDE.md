@@ -2,7 +2,7 @@
 
 # Project — English Learning PWA
 
-Next.js 16.2.6 + DeepSeek API + Tailwind v4 + Prisma/SQLite.
+Next.js 16.2.6 + DeepSeek API + Tailwind v4 + Prisma/PostgreSQL (Neon).
 See `VISION.md` for full specs, API contracts, and locked specifications.
 
 ## Critical constraints
@@ -44,7 +44,9 @@ See `VISION.md` for full specs, API contracts, and locked specifications.
 - Panel opens on top of content (z-50 overlay), not as a sidebar
 
 ## Current project state
-- **Reading module** (外刊, in progress): YouTube-style grid list + article detail with sidebar vocab panel. 2 test articles seeded. Summary: English default, Chinese toggle. Title: Chinese toggle on card. Details in VISION.md §六.
+- **Deployment**: Code on GitHub (repo: `2486716632-sudo/english-web`), Vercel project created but API disabled due to requiring credit card verification. Website partially accessible (cached pages work, API calls fail with "Payment required" / `DEPLOYMENT_DISABLED`)
+- **Database**: Neon PostgreSQL provisioned and seeded (2849 words + scene words + phonetics). Working correctly.
+- **Reading module** (外刊): YouTube-style grid list + article detail with sidebar vocab panel. 2 test articles seeded. Summary: English default, Chinese toggle. Title: Chinese toggle on card. Details in VISION.md §六.
 - **Vocabulary page animations**: Book icon entrance (scale+rotate stagger), title/subtitle fade-slide-up, all study buttons hover:scale-105+shadow across Daily Study and Word Packs
 - **Vocabulary**: 2000 IELTS words + 681 scene words (16 themes) in DB
 - **Scene word packs**: 16 themes — see VISION.md §8 for full list and design rules
@@ -54,8 +56,10 @@ See `VISION.md` for full specs, API contracts, and locked specifications.
 - **Image fallback**: Wikipedia 3-step fetch, no placeholder shown when no image available
 - **ECDICT**: Integrated — `prisma/ecdict/stardict.db` (3.4M entries), used for phonetic + definitions + IELTS tag filtering
 - **DeepSeek**: Generates collocations + 1 example per scene word. Cached in `prisma/generated_scene_data.json`
-- **Data seed**: `npx tsx prisma/seed.ts` — full re-seed takes ~20min (DeepSeek), incremental seed (cached) takes seconds
+- **Data seed**: `npx tsx prisma/seed.ts`
 - **Example highlight**: `highlightWord()` in words/page.tsx uses `\\b(word\\w*)\\b` to match inflected forms
+- **Neon connection**: Uses `PrismaNeon` adapter with `{ connectionString: process.env.DATABASE_URL! }`
+- **Postinstall**: `"postinstall": "prisma generate"` in package.json for Vercel builds
 
 ## Vocabulary UI preferences (behavioral rules)
 - **Entry route**: `/words` is the landing page (not `/words/study`). Clicking "Vocabulary" on homepage goes here.
@@ -73,3 +77,11 @@ See `VISION.md` for full specs, API contracts, and locked specifications.
 - **Card body**: No summary on cards (title + tags + date only). Summary is detail-page-only.
 - **Sources**: Free/no-paywall sites — The Conversation, BBC, Reuters, NPR, Scientific American, etc.
 - **Knowledge scope**: Articles should broaden user's general knowledge (tech, science, current events, engineering, economics, history, society) — user lacks browsing/news exposure.
+
+## Pending deployment issue
+- **Vercel requires credit card** for API routes to work (shows "Payment required" / DEPLOYMENT_DISABLED on non-static routes). Fix options:
+  1. Zeabur (supports Alipay, China-friendly, $5 Dev plan)
+  2. Render (free, but 30s cold start — user rejected)
+  3. Vercel with credit card verification (best option if possible)
+- GitHub repo: `https://github.com/2486716632-sudo/english-web` (public)
+- Vercel env vars already set: DATABASE_URL, DEEPSEEK_API_KEY — just need redeploy after payment resolved

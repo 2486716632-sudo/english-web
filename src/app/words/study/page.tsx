@@ -75,39 +75,27 @@ export default function WordsPage() {
 
   const submitAndFlip = useCallback(async (rating: number) => {
     const current = words[index]
-    if (!current || submitting) return
-    setSubmitting(true)
-    try {
-      await fetch('/api/words', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wordId: current.id, rating }),
-      })
-      setFlipped(true)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSubmitting(false)
-    }
-  }, [words, index, submitting])
+    if (!current) return
+    // Flip immediately, submit in background
+    setFlipped(true)
+    fetch('/api/words', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wordId: current.id, rating }),
+    }).catch((err) => console.error(err))
+  }, [words, index])
 
   const submitMastered = useCallback(async () => {
     const current = words[index]
-    if (!current || submitting) return
-    setSubmitting(true)
-    try {
-      await fetch('/api/words', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wordId: current.id, mastered: true }),
-      })
-      setFlipped(true)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSubmitting(false)
-    }
-  }, [words, index, submitting])
+    if (!current) return
+    // Flip immediately, submit in background
+    setFlipped(true)
+    fetch('/api/words', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wordId: current.id, mastered: true }),
+    }).catch((err) => console.error(err))
+  }, [words, index])
 
   // Back-side override buttons — submit and advance
   const submitAndAdvance = useCallback(async (rating: number) => {

@@ -14,6 +14,7 @@ interface ArticleItem {
   summary: string
   difficulty: number
   tags: string
+  readAt: string | null
   createdAt: string
 }
 
@@ -123,7 +124,6 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
               style={{ width: 'clamp(320px, 60vw, 440px)' }}
               onClick={() => onCardClick(a.id)}
             >
-              {/* Thumbnail — 16:9, all 4 corners rounded, no white card */}
               <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden shadow-sm transition-shadow duration-300 group-hover:shadow-md">
                 {a.imageUrl ? (
                   <img
@@ -136,7 +136,6 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
                 )}
               </div>
 
-              {/* Text below — no background, sits on page bg like YouTube */}
               <div className="pt-2.5">
                 <div className="flex items-start gap-2">
                   <h2 className="leading-snug font-bold flex-1 min-w-0" style={{ color: '#1A1A2E', fontSize: 'clamp(0.85rem, 1.2vw, 1rem)' }}>
@@ -163,7 +162,6 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
           )
         })}
       </div>
-      {/* Right-edge fade hint */}
       <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-12"
         style={{ background: 'linear-gradient(90deg, transparent, #F8F6F4)' }} />
     </div>
@@ -176,13 +174,17 @@ export default function ReadingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [showZh, setShowZh] = useState<Record<number, boolean>>({})
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const loadArticles = useCallback(() => {
     setLoading(true)
     setError(false)
-    fetch('/api/reading')
+    fetch('/api/reading?filter=new')
       .then((r) => r.json())
-      .then((data) => setArticles(data.articles || []))
+      .then((data) => {
+        setArticles(data.articles || [])
+        setUnreadCount(data.articles?.length || 0)
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
@@ -204,11 +206,21 @@ export default function ReadingPage() {
           <h1 className="text-xl md:text-2xl font-black tracking-widest uppercase" style={{ color: '#1A1A2E' }}>
             Reading
           </h1>
-          <div className="w-20" />
+          <button onClick={() => router.push('/reading/history')}
+            className="relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ backgroundColor: '#262626', color: '#FFFFFF' }}>
+            History
+            {unreadCount > 0 && (
+              <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                style={{ backgroundColor: '#FFFFFF', color: '#262626' }}>
+                {unreadCount}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Content — sections */}
+      {/* Content */}
       <main className="flex-1 px-8 md:px-14 py-10">
         {loading ? (
           <div className="space-y-10">
@@ -238,7 +250,8 @@ export default function ReadingPage() {
           </div>
         ) : articles.length === 0 ? (
           <div className="mt-24 text-center">
-            <p className="text-sm" style={{ color: '#BBBBBB' }}>No articles yet. Check back later.</p>
+            <p className="text-sm" style={{ color: '#BBBBBB' }}>All caught up! No new articles.</p>
+            <p className="text-xs mt-2" style={{ color: '#CCCCCC' }}>Check back later for new content.</p>
           </div>
         ) : (
           <div className="space-y-10">
@@ -246,7 +259,6 @@ export default function ReadingPage() {
               const visual = TAG_VISUALS[tag] || { gradient: 'linear-gradient(135deg, #E8E4E0, #D8D4D0)' }
               return (
                 <section key={tag}>
-                  {/* Section header */}
                   <div className="flex items-center gap-4 mb-5">
                     {TAG_ICONS[tag] || null}
                     <h2 className="text-lg md:text-xl font-bold tracking-[0.15em] uppercase" style={{ color: '#1A1A2E' }}>
@@ -257,7 +269,6 @@ export default function ReadingPage() {
                     </span>
                   </div>
 
-                  {/* Horizontal scroll row */}
                   <SectionRow
                     articles={items}
                     showZh={showZh}

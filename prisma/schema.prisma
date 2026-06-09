@@ -63,6 +63,7 @@ model Article {
   summaryEn   String?
   difficulty  Int           @default(3)
   tags        String
+  readAt      DateTime?
   createdAt   DateTime      @default(now())
   vocabItems  ArticleVocab[]
 }

@@ -123,6 +123,13 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { loadArticle() }, [loadArticle])
 
+  // Auto-mark as read once article loads
+  useEffect(() => {
+    if (article) {
+      fetch(`/api/reading/${id}/read`, { method: 'POST' }).catch(() => {})
+    }
+  }, [article, id])
+
   const addVocab = async (vocabId: number) => {
     if (addingIds.has(vocabId)) return
     setAddingIds((prev) => new Set(prev).add(vocabId))

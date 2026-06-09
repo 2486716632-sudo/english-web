@@ -1,9 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const filter = searchParams.get('filter') // 'new' | 'history' | null
+
+    const where: Record<string, unknown> = {}
+    if (filter === 'new') {
+      where.readAt = null
+    } else if (filter === 'history') {
+      where.readAt = { not: null }
+    }
+
     const articles = await prisma.article.findMany({
+      where,
       select: {
         id: true,
         title: true,
@@ -14,6 +25,7 @@ export async function GET() {
         summary: true,
         difficulty: true,
         tags: true,
+        readAt: true,
         createdAt: true,
         _count: { select: { vocabItems: true } },
       },
