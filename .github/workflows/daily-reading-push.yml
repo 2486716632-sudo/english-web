@@ -22,7 +22,11 @@ jobs:
       - run: npm install
       - run: npx prisma generate
 
-      - run: npx tsx scripts/reading-push.ts
+      - name: Debug environment
+        run: node --version && npx tsx --version
+
+      - name: Run reading push
+        run: npx tsx scripts/reading-push.ts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
