@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         tags: true,
         readAt: true,
         createdAt: true,
+        publishedAt: true,
         _count: { select: { vocabItems: true } },
       },
       orderBy: { createdAt: 'desc' },

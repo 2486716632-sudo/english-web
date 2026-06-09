@@ -263,6 +263,7 @@ async function main() {
       const { item, tags } = toProcess[i]
       const title = item.title || 'Untitled'
       const link = item.link || ''
+      const publishedAt = item.pubDate ? new Date(item.pubDate) : null
 
       console.log(`\n[reading-push] [${i + 1}/${toProcess.length}] Processing: "${title}"`)
 
@@ -299,6 +300,7 @@ async function main() {
             titleZh: dsResult.titleZh || null,
             url: link,
             imageUrl: extracted.imageUrl || null,
+            publishedAt,
             source: 'The Conversation',
             sourceEmoji: '📰',
             content: contentText,

@@ -16,6 +16,7 @@ interface ArticleItem {
   tags: string
   readAt: string | null
   createdAt: string
+  publishedAt: string | null
 }
 
 const TAG_VISUALS: Record<string, { gradient: string }> = {
@@ -94,10 +95,19 @@ function groupByTag(articles: ArticleItem[]) {
 
 function daysAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  return `${days} days ago`
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins} minute${mins > 1 ? 's' : ''} ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks} week${weeks > 1 ? 's' : ''} ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} month${months > 1 ? 's' : ''} ago`
+  const years = Math.floor(days / 365)
+  return `${years} year${years > 1 ? 's' : ''} ago`
 }
 
 function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
@@ -107,13 +117,53 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
   onCardClick: (id: number) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    checkScroll()
+    el.addEventListener('scroll', checkScroll, { passive: true })
+    // Also check after load (images may change scroll width)
+    const ro = new ResizeObserver(checkScroll)
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', checkScroll); ro.disconnect() }
+  }, [checkScroll, articles])
+
+  const scroll = (dir: 'left' | 'right') => {
+    const el = scrollRef.current
+    if (!el) return
+    const amount = el.clientWidth * 0.7
+    el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' })
+  }
 
   return (
-    <div className="relative">
+    <div className="relative group/row">
+      {canScrollLeft && (
+        <button onClick={() => scroll('left')}
+          className="absolute left-0 z-10 w-12 md:w-16 flex items-center justify-center
+            opacity-0 group-hover/row:opacity-100 -translate-x-2 group-hover/row:translate-x-0 transition-all duration-300"
+          style={{ top: 'calc(clamp(180px, 33.75vw, 247.5px) / 2 - 20px)', height: '52px', border: 'none', background: 'none' }}>
+          <div className="rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shadow-md opacity-80"
+            style={{ backgroundColor: '#FFFFFF', color: '#555555' }}>
+            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </div>
+        </button>
+      )}
       <div
         ref={scrollRef}
-        className="flex gap-5 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory scrollbar-none"
-        style={{ paddingLeft: '2px' }}
+        className="flex gap-5 pb-2 snap-x snap-mandatory scrollbar-none"
+        style={{ paddingLeft: '2px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}
       >
         {articles.map((a) => {
           const visual = getTagVisual(a.tags)
@@ -155,14 +205,27 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
                   )}
                 </div>
                 <p className="text-xs mt-1" style={{ color: '#BBBBBB' }}>
-                  {daysAgo(a.createdAt)}
+                  {daysAgo(a.publishedAt || a.createdAt)}
                 </p>
               </div>
             </div>
           )
         })}
       </div>
-      <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-12"
+      {canScrollRight && (
+        <button onClick={() => scroll('right')}
+          className="absolute right-0 z-10 w-12 md:w-16 flex items-center justify-center
+            opacity-0 group-hover/row:opacity-100 translate-x-2 group-hover/row:translate-x-0 transition-all duration-300"
+          style={{ top: 'calc(clamp(180px, 33.75vw, 247.5px) / 2 - 20px)', height: '52px', border: 'none', background: 'none' }}>
+          <div className="rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center shadow-md opacity-80"
+            style={{ backgroundColor: '#FFFFFF', color: '#555555' }}>
+            <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </div>
+        </button>
+      )}
+      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-12"
         style={{ background: 'linear-gradient(90deg, transparent, #F8F6F4)' }} />
     </div>
   )

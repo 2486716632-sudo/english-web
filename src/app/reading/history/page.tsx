@@ -10,6 +10,7 @@ interface ArticleItem {
   imageUrl: string | null
   tags: string
   createdAt: string
+  publishedAt: string | null
 }
 
 const TAG_VISUALS: Record<string, { gradient: string }> = {
@@ -123,7 +124,7 @@ export default function ReadingHistoryPage() {
                       {showZh[a.id] && a.titleZh ? a.titleZh : a.title}
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs" style={{ color: '#BBBBBB' }}>{formatDate(a.createdAt)}</span>
+                      <span className="text-xs" style={{ color: '#BBBBBB' }}>{formatDate(a.publishedAt || a.createdAt)}</span>
                       <span className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-black/5 text-black/40">
                         Read
                       </span>
