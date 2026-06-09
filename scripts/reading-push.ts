@@ -1,5 +1,7 @@
 import 'dotenv/config'
 import { PrismaClient } from '../src/generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 import Parser from 'rss-parser'
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
@@ -178,7 +180,11 @@ async function main() {
     process.exit(1)
   }
 
-  const prisma = new PrismaClient()
+  // Strip quotes from DATABASE_URL (GitHub secrets may include them from .env)
+  const dbUrl = (process.env.DATABASE_URL || '').replace(/^"(.*)"$/, '$1')
+  const pool = new Pool({ connectionString: dbUrl })
+  const adapter = new PrismaPg(pool)
+  const prisma = new PrismaClient({ adapter })
 
   try {
     // 1. Parse all category feeds and collect articles
