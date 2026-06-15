@@ -32,7 +32,8 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 ### 📖 Reading — 阅读中积累词汇
 <div align="center">
-  <img src="public/screenshots/screenshot-reading.png" alt="Reading" width="80%"/>
+  <img src="public/screenshots/screenshot-reading.png" alt="Reading list" width="48%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-reading-article.png" alt="Article detail" width="48%"/>
 </div>
 
 - 自动抓取 **The Conversation** RSS，每日更新英文推文
@@ -42,8 +43,9 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 ### 📝 Vocabulary SRS — 智能记忆
 <div align="center">
-  <img src="public/screenshots/screenshot-words-back.png" alt="Study card back" width="45%"/>&nbsp;&nbsp;
-  <img src="public/screenshots/screenshot-wordpacks.png" alt="Word packs" width="45%"/>
+  <img src="public/screenshots/screenshot-words-daily.png" alt="Daily study" width="32%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-words-front.png" alt="Card front" width="32%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-wordpacks.png" alt="Word packs" width="32%"/>
 </div>
 
 - **2000 IELTS 核心词汇**（550 手写精编 + 1450 AI 生成）
@@ -53,7 +55,9 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 ### 🎧 Listening — 精听唱片机
 <div align="center">
-  <img src="public/screenshots/screenshot-scenes.png" alt="Scenes list" width="80%"/>
+  <img src="public/screenshots/screenshot-scenes.png" alt="Scenes list" width="32%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-cdplayer.png" alt="CD player" width="32%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-subtitles.png" alt="Subtitles" width="32%"/>
 </div>
 
 - **场景对话**：基于 A1-A5 + B 六类关系模型（闲聊 / 服务 / 亲密 / 权力 / 陌生人 / 专业讨论），模拟真实对话
