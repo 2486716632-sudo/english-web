@@ -2,13 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatPhonetic } from '@/lib/types'
+import { formatPhonetic } from '@/lib/utils'
 
-function firstChineseMeaning(definition: string): string {
-  const seg = definition.split(/[；;]/).map((s) => s.trim()).filter(Boolean)[0]
-  if (!seg) return ''
-  const match = seg.match(/^[a-zA-Z/]+\.?\s*(.*)$/)
-  return match && match[1] ? match[1] : seg
+interface DefEntry { pos: string; meaning: string }
+
+function parseDefinitions(rawDef: string, rawPos: string): DefEntry[] {
+  const segments = rawDef.split(/[；;]|[\r\n]+/).map((s) => s.trim()).filter(Boolean)
+  return segments.map((seg) => {
+    const match = seg.match(/^([a-zA-Z/]+)\.?\s*(.*)$/)
+    if (match && match[1].length <= 6) {
+      return { pos: match[1].toLowerCase(), meaning: match[2] || seg }
+    }
+    return { pos: rawPos, meaning: seg }
+  })
 }
 
 interface MasteredWord {
@@ -38,7 +44,9 @@ export default function MasteredListPage() {
     }
   }, [])
 
-  useEffect(() => { fetchMastered() }, [fetchMastered])
+  useEffect(() => {
+    fetchMastered()
+  }, [fetchMastered])
 
   const returnWord = useCallback(async (wordId: number) => {
     setReturningId(wordId)
@@ -68,18 +76,17 @@ export default function MasteredListPage() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
       <div className="w-full px-6 md:px-12 pt-6 pb-2">
         <button onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-          style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+          style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back
         </button>
       </div>
 
       <div className="flex-1 px-6 md:px-12 pb-12">
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="w-full max-w-3xl mx-auto">
           <h1 className="text-2xl font-bold tracking-tight mb-2 text-center" style={{ color: '#262626' }}>Mastered Words</h1>
           <p className="text-sm text-center mb-8" style={{ color: '#757575' }}>
             {words.length} word{words.length !== 1 ? 's' : ''} permanently mastered
@@ -88,29 +95,40 @@ export default function MasteredListPage() {
           {words.length === 0 ? (
             <p className="text-sm text-center py-16" style={{ color: '#AAAAAA' }}>No mastered words yet.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {words.map((w) => (
                 <div key={w.id}
-                  className="flex items-center justify-between rounded-2xl border px-5 py-4"
+                  className="rounded-2xl border px-7 py-5"
                   style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)' }}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-semibold text-sm" style={{ color: '#2F2F2F' }}>{w.word}</span>
-                    {w.phonetic && (
-                      <span className="text-xs shrink-0" style={{ color: '#999999' }}>{formatPhonetic(w.phonetic)}</span>
-                    )}
-                    {w.definition && (
-                      <span className="text-xs shrink-0" style={{ color: '#AAAAAA' }}>· {firstChineseMeaning(w.definition)}</span>
-                    )}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-3 flex-wrap">
+                        <span className="font-bold text-lg" style={{ color: '#2F2F2F' }}>{w.word}</span>
+                        {w.phonetic && (
+                          <span className="text-sm" style={{ color: '#999999' }}>{formatPhonetic(w.phonetic)}</span>
+                        )}
+                      </div>
+                      {w.definition && (
+                        <div className="mt-1.5 space-y-0.5 text-sm leading-relaxed" style={{ color: '#555555' }}>
+                          {parseDefinitions(w.definition, w.partOfSpeech).map((d, i) => (
+                            <p key={i}>
+                              {d.pos && <span className="font-medium" style={{ color: '#666666' }}>{d.pos}</span>}
+                              {d.pos && ' '}{d.meaning}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => returnWord(w.id)}
+                      disabled={returningId === w.id}
+                      className="shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition-all hover:scale-105 active:scale-[0.95] disabled:opacity-40"
+                      style={{ backgroundColor: '#FCEAEB', color: '#B91C1C' }}
+                    >
+                      {returningId === w.id ? '…' : 'Return'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => returnWord(w.id)}
-                    disabled={returningId === w.id}
-                    className="shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all active:scale-[0.95] disabled:opacity-40"
-                    style={{ backgroundColor: '#F0F0F0', color: '#777777' }}
-                  >
-                    {returningId === w.id ? '…' : 'Return'}
-                  </button>
                 </div>
               ))}
             </div>

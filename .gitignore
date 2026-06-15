@@ -38,9 +38,18 @@ yarn-error.log*
 
 # claude
 .claude/
+.agents/
+CLAUDE.md
+AGENTS.md
+skills-lock.json
+memory_current_task.md
 
 # temp
 tmp/
+_check_progress.ts
+
+# generated audio
+public/listening/
 
 # typescript
 *.tsbuildinfo

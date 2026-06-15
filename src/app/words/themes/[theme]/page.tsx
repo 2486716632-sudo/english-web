@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
 import type { WordData } from '@/lib/types'
-import { formatPhonetic } from '@/lib/types'
+import { formatPhonetic } from '@/lib/utils'
+import { studyWordCache } from '@/lib/word-cache'
 
 const BATCH_SIZE = 15
 
@@ -62,35 +63,59 @@ const THEME_LABELS: Record<string, string> = {
 export default function ThemeStudyPage() {
   const params = useParams()
   const theme = params.theme as string
-  const router = useRouter()
+  return <ThemeStudyInner key={theme} theme={theme} />
+}
 
-  const [allWords, setAllWords] = useState<WordData[]>([])
-  const [batch, setBatch] = useState<WordData[]>([])
-  const [index, setIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [flipped, setFlipped] = useState(false)
-  const [gotItCount, setGotItCount] = useState(0)
+function ThemeStudyInner({ theme }: { theme: string }) {
+  const router = useRouter()
   const progressRef = useRef<ProgressMap>({})
 
-  // Load all theme words + progress
+  // Synchronous init: compute batch NOW from cache if available, no async gap
+  const cached = studyWordCache[theme]
+  const [allWords, setAllWords] = useState<WordData[]>(cached || [])
+  const [batch, setBatch] = useState<WordData[]>(() => {
+    if (!cached) return []
+    progressRef.current = loadProgress(theme)
+    const prog = progressRef.current
+    // Preserve AI order: take first BATCH_SIZE not-yet-mastered words
+    const notYet = cached.filter((w) => prog[w.id] !== 'got_it')
+    const mastered = cached.filter((w) => prog[w.id] === 'got_it')
+    return notYet.length >= BATCH_SIZE
+      ? notYet.slice(0, BATCH_SIZE)
+      : [...notYet, ...mastered.slice(0, BATCH_SIZE - notYet.length)]
+  })
+  const [index, setIndex] = useState(0)
+  const [loading, setLoading] = useState(!cached)
+  const [flipped, setFlipped] = useState(false)
+  const [gotItCount, setGotItCount] = useState(0)
+
+  // Load from API only on cache miss.
+  // Note: no fetchedRef guard — the module-level studyWordCache + ignore pattern
+  // already handle Strict Mode correctly. Adding fetchedRef here would
+  // cause the ignore flag to stay true from cleanup, making loading hang.
   useEffect(() => {
+    if (cached) return
+    let ignore = false
     ;(async () => {
       try {
         const res = await fetch(`/api/words?theme=${theme}`)
         const data = await res.json()
+        if (ignore) return
         const words: WordData[] = data.words || []
+        studyWordCache[theme] = words
         setAllWords(words)
 
         const prog = loadProgress(theme)
         progressRef.current = prog
-
-        // Pick up to BATCH_SIZE words that are not yet "got_it"
+        // Preserve AI order: take first BATCH_SIZE not-yet-mastered words
         const notYet = words.filter((w) => prog[w.id] !== 'got_it')
-        const shuffled = notYet.sort(() => Math.random() - 0.5)
-        const batchWords = shuffled.slice(0, BATCH_SIZE)
+        const mastered = words.filter((w) => prog[w.id] === 'got_it')
+        const batchWords = notYet.length >= BATCH_SIZE
+          ? notYet.slice(0, BATCH_SIZE)
+          : [...notYet, ...mastered.slice(0, BATCH_SIZE - notYet.length)]
+        if (ignore) return
         setBatch(batchWords)
 
-        // Preload images for the batch
         batchWords.forEach((w) => {
           if (w.imageUrl) {
             const img = new Image()
@@ -98,11 +123,12 @@ export default function ThemeStudyPage() {
           }
         })
       } catch {
-        setAllWords([])
+        if (!ignore) setAllWords([])
       } finally {
-        setLoading(false)
+        if (!ignore) setLoading(false)
       }
     })()
+    return () => { ignore = true }
   }, [theme])
 
   const flipCard = useCallback(() => {
@@ -126,10 +152,14 @@ export default function ThemeStudyPage() {
   }, [])
 
   const nextRound = useCallback(() => {
-    const notYet = allWords.filter((w) => progressRef.current[w.id] !== 'got_it')
-    if (notYet.length === 0) return
-    const shuffled = notYet.sort(() => Math.random() - 0.5)
-    setBatch(shuffled.slice(0, BATCH_SIZE))
+    const prog = progressRef.current
+    // Preserve AI order: take the next BATCH_SIZE not-yet-mastered words
+    const notYet = allWords.filter((w) => prog[w.id] !== 'got_it')
+    const mastered = allWords.filter((w) => prog[w.id] === 'got_it')
+    const next = notYet.length >= BATCH_SIZE
+      ? notYet.slice(0, BATCH_SIZE)
+      : [...notYet, ...mastered.slice(0, BATCH_SIZE - notYet.length)]
+    setBatch(next)
     setIndex(0)
     setFlipped(false)
     setGotItCount(0)
@@ -137,7 +167,7 @@ export default function ThemeStudyPage() {
 
   const current = batch[index]
   const isComplete = !loading && batch.length > 0 && index >= batch.length
-  const displayLabel = THEME_LABELS[theme] || theme
+  const displayLabel = THEME_LABELS[theme] || theme.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   const hasCollocations = current?.collocations && current.collocations.length > 0
   const collocList = hasCollocations ? current.collocations!.split(',').map((s) => s.trim()) : []
 
@@ -154,13 +184,12 @@ export default function ThemeStudyPage() {
       <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
         <div className="w-full px-6 md:px-12 pt-6 pb-2">
           <button onClick={() => router.back()}
-            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-            style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+            style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
-            Back
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-4 text-center">
@@ -182,13 +211,12 @@ export default function ThemeStudyPage() {
       <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
         <div className="w-full px-6 md:px-12 pt-6 pb-2">
           <button onClick={() => router.back()}
-            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-            style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+            style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
-            Back
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-4 text-center">
@@ -200,20 +228,18 @@ export default function ThemeStudyPage() {
             </p>
             {remaining > 0 && (
               <p className="mt-1 text-sm" style={{ color: '#888888' }}>
-                {remaining} words still learning.
+                {remaining} new words remaining in this pack.
               </p>
             )}
             <div className="mt-8 flex justify-center gap-4">
-              {remaining > 0 && (
               <button onClick={nextRound}
                 className="rounded-full px-6 py-3 text-sm font-semibold text-white transition-all active:scale-[0.97] hover:opacity-90"
                 style={{ backgroundColor: '#262626' }}>
                 Next Round
               </button>
-            )}
+            </div>
           </div>
         </div>
-      </div>
       </div>
     )
   }
@@ -222,6 +248,15 @@ export default function ThemeStudyPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center" style={{ backgroundColor: '#F8F6F4' }}>
         <p className="text-sm" style={{ color: '#757575' }}>No words found for this pack.</p>
+      </div>
+    )
+  }
+
+  // Safety guard: never render a card without a valid word
+  if (!current && !loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#F8F6F4' }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-stone-200 border-t-stone-800" />
       </div>
     )
   }
@@ -310,18 +345,17 @@ export default function ThemeStudyPage() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
-      <div className="w-full px-6 md:px-12 pt-6 pb-2">
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#F8F6F4' }}>
+      <div className="flex-shrink-0 w-full px-6 md:px-12 pt-6 pb-2">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center">
           <div className="flex justify-start">
             <button onClick={() => router.back()}
-              className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-              style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+              style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
-              Back
             </button>
           </div>
 
@@ -336,7 +370,7 @@ export default function ThemeStudyPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 min-h-0">
         <div className="w-full max-w-2xl mx-auto mb-6">
           <div className="flex items-center gap-4">
             <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#888888' }}>Progress</span>

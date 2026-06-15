@@ -65,8 +65,41 @@ model Article {
   tags        String
   publishedAt DateTime?
   readAt      DateTime?
+  favoritedAt DateTime?
   createdAt   DateTime      @default(now())
   vocabItems  ArticleVocab[]
+}
+
+model ListeningScene {
+  id              String         @id @default(cuid())
+  categoryId      String                          // e.g. "scene-campus"
+  subcategoryId   String                          // e.g. "campus-lecture"
+  title           String                          // e.g. "Surprise Quiz"
+  titleZh         String?                          // Chinese translation of title
+  description     String?
+  difficulty      String         @default("intermediate") // elementary / intermediate / advanced
+  duration        Int            @default(0)      // total seconds
+  speakers        Int            @default(2)      // number of speakers
+  playedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  lines           ListeningLine[]
+
+  @@index([categoryId, subcategoryId])
+}
+
+model ListeningLine {
+  id        String         @id @default(cuid())
+  sceneId   String
+  speaker   String                          // "A" or "B" or speaker name
+  english   String                          // English text
+  chinese   String?                          // Chinese translation
+  lineOrder Int                             // 0-based line order
+  audioUrl  String?                          // path to audio file for this line
+  createdAt DateTime       @default(now())
+  scene     ListeningScene @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([sceneId, lineOrder])
 }
 
 model ArticleVocab {

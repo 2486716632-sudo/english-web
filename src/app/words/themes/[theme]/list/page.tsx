@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useParams } from 'next/navigation'
 import type { WordData } from '@/lib/types'
-import { formatPhonetic } from '@/lib/types'
+import { formatPhonetic } from '@/lib/utils'
+import { listWordCache } from '@/lib/word-cache'
 
 interface ProgressMap {
   [wordId: number]: 'got_it' | 'not_yet'
@@ -50,24 +51,37 @@ const THEME_LABELS: Record<string, string> = {
 export default function WordListPage() {
   const params = useParams()
   const theme = params.theme as string
-  const [words, setWords] = useState<WordData[]>([])
+  return <WordListInner key={theme} theme={theme} />
+}
+
+function WordListInner({ theme }: { theme: string }) {
+  const [words, setWords] = useState<WordData[]>(listWordCache[theme] ?? [])
   const [progress, setProgress] = useState<ProgressMap>({})
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
+    let ignore = false
     ;(async () => {
       try {
+        if (listWordCache[theme]) {
+          setProgress(loadProgress(theme))
+          setLoading(false)
+          return
+        }
         const res = await fetch(`/api/words?theme=${theme}`)
         const data = await res.json()
+        if (ignore) return
+        listWordCache[theme] = data.words || []
         setWords(data.words || [])
         setProgress(loadProgress(theme))
       } catch {
-        setWords([])
+        if (!ignore) setWords([])
       } finally {
-        setLoading(false)
+        if (!ignore) setLoading(false)
       }
     })()
+    return () => { ignore = true }
   }, [theme])
 
   const setWordStatus = useCallback((wordId: number, status: 'got_it' | 'not_yet') => {
@@ -80,7 +94,7 @@ export default function WordListPage() {
 
   const notYet = words.filter((w) => progress[w.id] !== 'got_it')
   const gotIt = words.filter((w) => progress[w.id] === 'got_it')
-  const displayLabel = THEME_LABELS[theme] || theme
+  const displayLabel = THEME_LABELS[theme] || theme.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
   if (loading) {
     return (
@@ -94,18 +108,17 @@ export default function WordListPage() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
       <div className="w-full px-6 md:px-12 pt-6 pb-2">
         <button onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-          style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+          style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back
         </button>
       </div>
 
-      <div className="flex-1 px-6 md:px-12 pb-12">
-        <div className="w-full max-w-4xl mx-auto">
+      <div className="flex-1 px-6 md:px-16 lg:px-24 pb-12">
+        <div className="w-full max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold tracking-tight mb-2 text-center" style={{ color: '#262626' }}>{displayLabel} - Word List</h1>
           <p className="text-sm text-center mb-8" style={{ color: '#757575' }}>
             <span style={{ color: '#FC6F7B' }}>{notYet.length} learning</span>
@@ -119,18 +132,18 @@ export default function WordListPage() {
             {/* Not Yet column */}
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#FC6F7B' }}>Learning ({notYet.length})</h2>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {notYet.map((w) => (
                   <div key={w.id}
-                    className="flex items-center gap-3 rounded-2xl border px-4 py-3"
+                    className="flex items-center gap-4 rounded-2xl border px-6 py-4"
                     style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)' }}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: '#2F2F2F' }}>{w.word}</p>
-                      <p className="text-xs truncate" style={{ color: '#888888' }}>{formatPhonetic(w.phonetic) || ''} {w.definition}</p>
+                      <p className="font-semibold text-base truncate" style={{ color: '#2F2F2F' }}>{w.word}</p>
+                      <p className="text-sm truncate mt-0.5" style={{ color: '#888888' }}>{formatPhonetic(w.phonetic) || ''} {w.definition}</p>
                     </div>
                     <button onClick={() => setWordStatus(w.id, 'got_it')}
-                      className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-all active:scale-95"
+                      className="shrink-0 text-sm font-semibold px-4 py-2 rounded-full transition-all active:scale-95 hover:shadow-md"
                       style={{ backgroundColor: '#E1EDFA', color: '#64B0FA' }}>
                       ✔
                     </button>
@@ -145,18 +158,18 @@ export default function WordListPage() {
             {/* Got It column */}
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#64B0FA' }}>Mastered ({gotIt.length})</h2>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {gotIt.map((w) => (
                   <div key={w.id}
-                    className="flex items-center gap-3 rounded-2xl border px-4 py-3"
+                    className="flex items-center gap-4 rounded-2xl border px-6 py-4"
                     style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)' }}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate" style={{ color: '#2F2F2F' }}>{w.word}</p>
-                      <p className="text-xs truncate" style={{ color: '#888888' }}>{formatPhonetic(w.phonetic) || ''} {w.definition}</p>
+                      <p className="font-semibold text-base truncate" style={{ color: '#2F2F2F' }}>{w.word}</p>
+                      <p className="text-sm truncate mt-0.5" style={{ color: '#888888' }}>{formatPhonetic(w.phonetic) || ''} {w.definition}</p>
                     </div>
                     <button onClick={() => setWordStatus(w.id, 'not_yet')}
-                      className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-all active:scale-95"
+                      className="shrink-0 text-sm font-semibold px-4 py-2 rounded-full transition-all active:scale-95 hover:shadow-md"
                       style={{ backgroundColor: '#FCEAEB', color: '#FC6F7B' }}>
                       ✗
                     </button>

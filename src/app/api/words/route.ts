@@ -7,18 +7,18 @@ const DEFAULT_DAILY_TARGET = 15
 
 export async function GET(request: NextRequest) {
   const now = new Date()
+  now.setHours(0, 0, 0, 0)
   const { searchParams } = new URL(request.url)
   const queue = searchParams.get('queue')
   const theme = searchParams.get('theme')
   const DAILY_TARGET = Math.min(Math.max(Number(searchParams.get('dailyTarget')) || DEFAULT_DAILY_TARGET, 1), 100)
 
-  // Theme mode: return all words for a theme, no SRS filtering
+  // Theme mode: return all words for a theme in creation order (AI's most-common-first order)
   if (theme) {
     const words = await prisma.word.findMany({
       where: { theme },
-      orderBy: { word: 'asc' },
+      orderBy: { createdAt: 'asc' },
     })
-    shuffleArray(words)
     const result = words.map((w) => ({ ...w, review: null }))
     return NextResponse.json({
       words: result,
@@ -121,11 +121,12 @@ export async function POST(request: NextRequest) {
 
   // Un-mastered — remove mastered status
   if (unmastered === true) {
+    const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0)
     const review = await prisma.wordReview.upsert({
       where: { wordId },
       update: {
         isMastered: false,
-        nextReviewAt: new Date(),
+        nextReviewAt: todayMidnight,
         interval: 0,
         easiness: 2.5,
         repetitions: 0,
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
       create: {
         wordId,
         isMastered: false,
-        nextReviewAt: new Date(),
+        nextReviewAt: todayMidnight,
         interval: 0,
         easiness: 2.5,
         repetitions: 0,
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
         wordId,
         isMastered: true,
         lastReviewedAt: new Date(),
-        nextReviewAt: new Date(),
+        nextReviewAt: new Date(new Date().setHours(0, 0, 0, 0)),
         interval: 0,
         easiness: 2.5,
         repetitions: 0,

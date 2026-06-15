@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface ArticleItem {
   id: number
@@ -39,19 +40,67 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+let historyCache: ArticleItem[] | null = null
+
+// Module-level scroll position — set by card onClick, read on mount
+let _hisScroll: number | null = null
+
 export default function ReadingHistoryPage() {
   const router = useRouter()
-  const [articles, setArticles] = useState<ArticleItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [articles, setArticles] = useState<ArticleItem[]>(historyCache || [])
+  const [loading, setLoading] = useState(!historyCache)
   const [error, setError] = useState(false)
   const [showZh, setShowZh] = useState<Record<number, boolean>>({})
+  const restoredRef = useRef(false)
+
+  // Auto-cleanup history older than 10 days (once per browser)
+  useEffect(() => {
+    const lastCleanup = localStorage.getItem('reading-history-cleanup')
+    if (lastCleanup && Date.now() - Number(lastCleanup) < 10 * 24 * 60 * 60 * 1000) return
+    fetch('/api/history/cleanup?type=reading', { method: 'POST' })
+      .then(() => localStorage.setItem('reading-history-cleanup', String(Date.now())))
+      .catch(() => {})
+  }, [])
+
+  // Read + clear module-level scroll var (fresh entry = no restore)
+  const [savedScroll] = useState(() => {
+    const v = _hisScroll
+    _hisScroll = null
+    return v
+  })
+
+  // Restore scroll position from module-level var
+  useLayoutEffect(() => {
+    if (savedScroll === null || restoredRef.current) return
+    const target = savedScroll
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+    if (maxScroll >= target) {
+      restoredRef.current = true
+      window.scrollTo(0, target)
+      let attempts = 0
+      function retry() {
+        if (++attempts > 20) return
+        window.scrollTo(0, target)
+        requestAnimationFrame(retry)
+      }
+      requestAnimationFrame(retry)
+    }
+  })
 
   const loadArticles = useCallback(() => {
-    setLoading(true)
+    if (historyCache) {
+      setArticles(historyCache)
+      setLoading(false)
+      return
+    }
     setError(false)
     fetch('/api/reading?filter=history')
       .then((r) => r.json())
-      .then((data) => setArticles(data.articles || []))
+      .then((data) => {
+        const items = data.articles || []
+        historyCache = items
+        setArticles(items)
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
@@ -62,11 +111,14 @@ export default function ReadingHistoryPage() {
     <div className="flex min-h-screen flex-col" style={{ backgroundColor: '#F8F6F4' }}>
       <header className="shrink-0 border-b px-8 md:px-14 py-5" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>
         <div className="flex items-center justify-between">
-          <button onClick={() => router.push('/reading')}
-            className="rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#F0F0F0', color: '#757575' }}>
-            ← Back
-          </button>
+          <Link href="/reading"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+            style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </Link>
           <h1 className="text-xl md:text-2xl font-black tracking-widest uppercase" style={{ color: '#1A1A2E' }}>
             History
           </h1>
@@ -106,10 +158,10 @@ export default function ReadingHistoryPage() {
             {articles.map((a) => {
               const visual = getTagVisual(a.tags)
               return (
-                <div
+                <Link href={`/reading/${a.id}`}
+                  onClick={() => { _hisScroll = window.scrollY }}
                   key={a.id}
-                  className="group cursor-pointer flex items-center gap-5 rounded-2xl border p-4 transition-all duration-200 hover:scale-[1.01] hover:shadow-sm active:scale-[0.99]"
-                  onClick={() => router.push(`/reading/${a.id}`)}
+                  className="group flex items-center gap-5 rounded-2xl border p-4 transition-all duration-200 hover:scale-[1.01] hover:shadow-sm active:scale-[0.99]"
                   style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)' }}
                 >
                   <div className="relative shrink-0 w-24 h-16 md:w-32 md:h-20 rounded-xl overflow-hidden">
@@ -142,7 +194,7 @@ export default function ReadingHistoryPage() {
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
               )
             })}
           </div>

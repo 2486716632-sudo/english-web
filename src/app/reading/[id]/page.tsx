@@ -2,6 +2,8 @@
 
 import { useState, useEffect, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Heart } from 'lucide-react'
 
 interface VocabItem {
   id: number
@@ -28,6 +30,7 @@ interface ArticleData {
   difficulty: number
   tags: string
   createdAt: string
+  favoritedAt: string | null
   vocabItems: VocabItem[]
 }
 
@@ -82,11 +85,10 @@ const POS_ABBR: Record<string, string> = {
 
 function highlightText(text: string, vocabWords: string[]): (string | { word: string; index: number })[] {
   if (!vocabWords.length) return [text]
-  const pattern = new RegExp(`\\b(${vocabWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi')
   const parts: (string | { word: string; index: number })[] = []
   let lastIndex = 0
   let match: RegExpExecArray | null
-  const re = new RegExp(pattern.source, 'gi')
+  const re = new RegExp(`\\b(${vocabWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi')
   while ((match = re.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index))
@@ -102,22 +104,32 @@ function highlightText(text: string, vocabWords: string[]): (string | { word: st
   return parts
 }
 
+const articleCache = new Map<string, ArticleData>()
+
 export default function ReadingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const [article, setArticle] = useState<ArticleData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [article, setArticle] = useState<ArticleData | null>(articleCache.get(id) || null)
+  const [loading, setLoading] = useState(!articleCache.has(id))
   const [error, setError] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(!!article?.favoritedAt)
   const [addingIds, setAddingIds] = useState<Set<number>>(new Set())
 
   const loadArticle = useCallback(() => {
-    setLoading(true)
+    // Show cached data immediately
+    const cached = articleCache.get(id)
+    if (cached) setArticle(cached)
     setError(false)
     fetch(`/api/reading/${id}`)
       .then((r) => r.json())
-      .then((data) => setArticle(data.article || null))
-      .catch(() => setError(true))
+      .then((data) => {
+        if (data.article) {
+          articleCache.set(id, data.article)
+          setArticle(data.article)
+        }
+      })
+      .catch(() => { if (!articleCache.has(id)) setError(true) })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -127,8 +139,16 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     if (article) {
       fetch(`/api/reading/${id}/read`, { method: 'POST' }).catch(() => {})
+      setIsFavorite(!!article.favoritedAt)
     }
   }, [article, id])
+
+  const toggleFavorite = () => {
+    setIsFavorite((v) => !v)
+    fetch(`/api/reading/${id}/favorite`, { method: 'POST' }).catch(() => {
+      setIsFavorite((v) => !v)
+    })
+  }
 
   const addVocab = async (vocabId: number) => {
     if (addingIds.has(vocabId)) return
@@ -185,8 +205,12 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
           style={{ backgroundColor: '#262626', color: '#FFFFFF' }}>
           Retry
         </button>
-        <button onClick={() => router.push('/reading')} className="mt-3 text-xs font-medium underline" style={{ color: '#888888' }}>
-          ← Back to Reading
+        <button onClick={() => router.back()}
+          className="mt-4 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+          style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
         </button>
       </div>
     )
@@ -196,8 +220,12 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
     return (
       <div className="flex min-h-screen flex-col items-center justify-center" style={{ backgroundColor: '#F8F6F4' }}>
         <p className="text-sm" style={{ color: '#BBBBBB' }}>Article not found.</p>
-        <button onClick={() => router.push('/reading')} className="mt-4 text-xs font-medium underline" style={{ color: '#888888' }}>
-          ← Back to Reading
+        <button onClick={() => router.back()}
+          className="mt-4 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+          style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
         </button>
       </div>
     )
@@ -224,10 +252,20 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
               <div className="h-full w-full" style={{ background: visual.gradient }} />
             )}
             {/* Back button — overlay top-left on hero */}
-            <button onClick={() => router.push('/reading')}
-              className="absolute top-4 left-4 md:top-6 md:left-6 rounded-full px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm transition-all duration-200 hover:scale-105 active:scale-95 z-20"
+            <button onClick={() => router.back()}
+              className="absolute top-4 left-4 md:top-6 md:left-6 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all hover:opacity-60 active:scale-95 active:rotate-12 z-20"
               style={{ backgroundColor: 'rgba(0,0,0,0.45)', color: '#FFFFFF' }}>
-              ← Back
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+            {/* Favorite button — overlay top-right on hero */}
+            <button onClick={toggleFavorite}
+              className="absolute top-4 right-4 md:top-6 md:right-6 rounded-full w-9 h-9 flex items-center justify-center backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-90 z-20"
+              style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+              <Heart className="w-5 h-5" strokeWidth={2}
+                fill={isFavorite ? '#E05050' : 'transparent'}
+                color={isFavorite ? '#E05050' : '#FFFFFF'} />
             </button>
             {/* Gradient fade to background color */}
             <div className="absolute inset-0" style={{ background: 'linear-gradient(0deg, #F8F6F4 0%, transparent 100%)' }} />

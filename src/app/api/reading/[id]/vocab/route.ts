@@ -98,7 +98,7 @@ async function addVocabToSrs(vocab: {
     const existingReview = await prisma.wordReview.findUnique({ where: { wordId } })
     if (!existingReview) {
       await prisma.wordReview.create({
-        data: { wordId, interval: 0, easiness: 2.5, repetitions: 0, nextReviewAt: new Date() },
+        data: { wordId, interval: 0, easiness: 2.5, repetitions: 0, nextReviewAt: new Date(new Date().setHours(0, 0, 0, 0)) },
       })
     }
   } else {

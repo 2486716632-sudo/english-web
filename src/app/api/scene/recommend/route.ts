@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 interface RecommendRequest {
   practicedTags?: string[]
   count?: number
+  excludeTitles?: string[]
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: RecommendRequest = await request.json()
     const practicedTags = body.practicedTags ?? []
-    const count = body.count ?? 3
+    const count = body.count ?? 4
+    const excludeTitles = body.excludeTitles ?? []
 
     const apiKey = process.env.DEEPSEEK_API_KEY
     const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
@@ -41,7 +43,8 @@ RULES — strict:
 6. Prompts should be specific enough for a scenario generator to produce a full scene.
 
 User's practiced tags so far: ${practicedTags.length > 0 ? practicedTags.join(', ') : 'none — first visit'}
-${practicedTags.length === 0 ? 'Start with 3 essential survival scenarios from different categories (e.g. dining, transportation, shopping).' : 'Ensure none of the recommended categories overlap with recently practiced tags. Prioritize uncovered areas.'}`
+${practicedTags.length === 0 ? 'Start with 4 essential survival scenarios from different categories (e.g. dining, transportation, shopping).' : 'Ensure none of the recommended categories overlap with recently practiced tags. Prioritize uncovered areas.'}
+${excludeTitles.length > 0 ? `DO NOT recommend these specific scenarios (already shown): ${excludeTitles.join('; ')}` : ''}`
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 30000)

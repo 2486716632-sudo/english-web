@@ -4,11 +4,27 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { prompt } = body
+    const { prompt, reference } = body
 
     if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
       return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
     }
+
+    const refText = reference
+      ? `\n\n## DOMAIN INHERITANCE (strict)
+The user wants a NEW scenario that is DIFFERENT in plot but belongs to the SAME domain as their current scenario. Inherit these from the reference scenario below:
+- badge / badgeZh — SAME emoji and category (e.g. 🎬 American TV Drama)
+- Difficulty — SAME number of goals (3) and same initiate→negotiate→resolve trajectory
+- aiRole / setting style — SAME general type of character and environment
+- BUT the actual plot, description, conflict, aiFirstLine must be COMPLETELY DIFFERENT — never reuse the reference's story.
+
+Reference scenario:
+badge: "${reference.badge}"
+title: "${reference.title}"
+setting: "${reference.setting}"
+aiRole: "${reference.aiRole}"
+goals: ${JSON.stringify(reference.goals)}`
+      : ''
 
     const apiKey = process.env.DEEPSEEK_API_KEY
     const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
@@ -53,7 +69,7 @@ RULES:
 - badge/badgeZh should match the theme (🚇 Travel, 🍽️ Dining, 💼 Business, 🏥 Medical, 🎓 Academic, 🎬 Entertainment, 🛍️ Shopping, 🏨 Hotel, etc.)
 - id and imageSeed use kebab-case, all lowercase
 - User's request may be in English or Chinese — generate English scenario content regardless
-- aiFirstLineExpr: highlight exactly 2 useful English phrases from the opening line with Chinese explanations of why they're valuable`
+- aiFirstLineExpr: highlight exactly 2 useful English phrases from the opening line with Chinese explanations of why they're valuable${refText}`
 
     const msgs = [
       { role: 'system' as const, content: systemPrompt },

@@ -191,7 +191,9 @@ const SEED_SCENARIOS: ScenarioSeed[] = [
 function speak(text: string, onEnd?: () => void) {
   if (!window.speechSynthesis) return
   window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
+  const clean = text.replace(/\p{Emoji}/gu, '').trim()
+  if (!clean) return
+  const utterance = new SpeechSynthesisUtterance(clean)
   utterance.lang = 'en-US'
   utterance.rate = 0.95
   utterance.pitch = 1.0
@@ -245,7 +247,7 @@ export default function CoachPage() {
   const [showHints, setShowHints] = useState(false)
   const [nextHints, setNextHints] = useState<HintsData>({ pillars: [], vocabulary: [] })
   const [corrections, setCorrections] = useState<CorrectionsData | null>(null)
-  const [missionProgress, setMissionProgress] = useState<boolean[]>([false, false, false])
+  // missionProgress removed — goals shown as static reference
   const [isLoading, setIsLoading] = useState(false)
   const [isSessionComplete, setIsSessionComplete] = useState(false)
   const [showFinishSuggestion, setShowFinishSuggestion] = useState(false)
@@ -269,22 +271,15 @@ export default function CoachPage() {
   interface RecommendItem {
     badge: string; badgeZh: string; title: string; prompt: string
   }
-  const [recommendations, setRecommendations] = useState<RecommendItem[]>(() => {
-    if (typeof window === 'undefined') return []
-    try { return JSON.parse(localStorage.getItem('coach_recommendations') || '[]') } catch { return [] }
-  })
-  const [recsLoading, setRecsLoading] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return !localStorage.getItem('coach_recommendations')
-  })
-  const [practicedTags, setPracticedTags] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return []
-    try { return JSON.parse(localStorage.getItem('coach_practiced_tags') || '[]') } catch { return [] }
-  })
+  const [recommendations, setRecommendations] = useState<RecommendItem[]>([])
+  const [recsLoading, setRecsLoading] = useState(true)
+  const [practicedTags, setPracticedTags] = useState<string[]>([])
   const updatePracticedTags = useCallback((tags: string[]) => {
     setPracticedTags(tags)
     if (typeof window !== 'undefined') localStorage.setItem('coach_practiced_tags', JSON.stringify(tags))
   }, [])
+  const practicedTagsRef = useRef(practicedTags)
+  useEffect(() => { practicedTagsRef.current = practicedTags }, [practicedTags])
 
   const setRecsWithCache = useCallback((recs: RecommendItem[]) => {
     setRecommendations(recs)
@@ -296,6 +291,10 @@ export default function CoachPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const messagesRef = useRef<Message[]>([])
   useEffect(() => { messagesRef.current = messages }, [messages])
+  const recsAbortRef = useRef<AbortController | null>(null)
+
+  /* ---- Abort recommendations on unmount ---- */
+  useEffect(() => { return () => recsAbortRef.current?.abort() }, [])
 
   /* ---- Voice / send-safety refs ---- */
   const inputTextRef = useRef('')
@@ -309,19 +308,44 @@ export default function CoachPage() {
     setScenario(SEED_SCENARIOS[Math.floor(Math.random() * SEED_SCENARIOS.length)])
   }, [])
 
-  /* ---- Fetch recommendations on mount ---- */
-  useEffect(() => {
+  const fetchRecommendations = useCallback((tags: string[], count?: number, excludeTitles?: string[]) => {
+    recsAbortRef.current?.abort()
+    const controller = new AbortController()
+    recsAbortRef.current = controller
+
     setRecsLoading(true)
-    fetch('/api/scene/recommend', {
+    return fetch('/api/scene/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ practicedTags }),
+      body: JSON.stringify({ practicedTags: tags, count: count ?? 4, excludeTitles }),
+      signal: controller.signal,
     })
       .then((r) => r.json())
       .then((data) => { if (data.recommendations) setRecsWithCache(data.recommendations) })
       .catch(() => {})
-      .finally(() => setRecsLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+      .finally(() => { if (recsAbortRef.current === controller) setRecsLoading(false) })
+  }, [setRecsWithCache])
+
+  const [recsKey, setRecsKey] = useState(0)
+  const refreshRecommendations = useCallback(() => {
+    fetchRecommendations(practicedTags, 4, recommendations.map((r) => r.title)).then(() => setRecsKey((k) => k + 1))
+  }, [practicedTags, fetchRecommendations, recommendations])
+
+  /* ---- Hydrate from localStorage + fetch recommendations on mount ---- */
+  useEffect(() => {
+    let cachedRecs: RecommendItem[] = []
+    let cachedTags: string[] = []
+    try {
+      const recsRaw = localStorage.getItem('coach_recommendations')
+      if (recsRaw) cachedRecs = JSON.parse(recsRaw)
+      const tagsRaw = localStorage.getItem('coach_practiced_tags')
+      if (tagsRaw) cachedTags = JSON.parse(tagsRaw)
+    } catch {}
+    if (cachedRecs.length > 0) setRecsWithCache(cachedRecs)
+    setPracticedTags(cachedTags)
+    fetchRecommendations(cachedTags)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ---- Auto-scroll ---- */
   useEffect(() => {
@@ -329,7 +353,7 @@ export default function CoachPage() {
   }, [messages])
 
   /* ---- Generate Scenario ---- */
-  const generateScenario = useCallback(async (prompt: string) => {
+  const generateScenario = useCallback(async (prompt: string, reference?: ScenarioSeed | null) => {
     if (!prompt.trim() || isGenerating) return
     setIsGenerating(true)
     setGenerateError('')
@@ -337,7 +361,7 @@ export default function CoachPage() {
       const res = await fetch('/api/scene/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim() }),
+        body: JSON.stringify({ prompt: prompt.trim(), reference }),
       })
       if (!res.ok) {
         let detail = ''
@@ -352,18 +376,10 @@ export default function CoachPage() {
       /* Refresh recommendations excluding this new tag */
       const newBadge = ((data as ScenarioSeed).badge || '').match(/[A-Za-z\s]+/)
       const newTag = newBadge ? newBadge[0].trim() : ''
-      const updatedTags = newTag ? [newTag, ...practicedTags.filter((t) => t !== newTag)].slice(0, 20) : practicedTags
+      const currentTags = practicedTagsRef.current
+      const updatedTags = newTag ? [newTag, ...currentTags.filter((t) => t !== newTag)].slice(0, 20) : currentTags
       if (newTag) updatePracticedTags(updatedTags)
-      setRecsLoading(true)
-      fetch('/api/scene/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ practicedTags: updatedTags }),
-      })
-        .then((r) => r.json())
-        .then((recData) => { if (recData.recommendations) setRecommendations(recData.recommendations) })
-        .catch(() => {})
-        .finally(() => setRecsLoading(false))
+      fetchRecommendations(updatedTags)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Generation failed'
       setGenerateError(msg)
@@ -371,7 +387,7 @@ export default function CoachPage() {
     } finally {
       setIsGenerating(false)
     }
-  }, [isGenerating])
+  }, [isGenerating, updatePracticedTags, fetchRecommendations])
 
   /* ---- Start session ---- */
   const startScenario = useCallback(() => {
@@ -381,7 +397,6 @@ export default function CoachPage() {
     setShowChinese(false)
     setNextHints({ pillars: [], vocabulary: [] })
     setCorrections(null)
-    setMissionProgress([false, false, false])
     setIsLoading(false)
     setIsSessionComplete(false)
     setShowOverlay(false)
@@ -432,12 +447,6 @@ export default function CoachPage() {
       if (data.corrections) setCorrections(data.corrections)
       if (data.nextHints) setNextHints(data.nextHints)
 
-      /* — Mission progress: track how many goals user has likely completed — */
-      if (scenario.goals) {
-        const turnN = Math.floor(allMessages.length / 2)
-        const progress = scenario.goals.map((_, i) => turnN > i)
-        setMissionProgress(progress)
-      }
 
       /* — Session completion (user decides when to end) — */
       if (data.isFinished) {
@@ -476,19 +485,10 @@ export default function CoachPage() {
       const tag = badgeMatch ? badgeMatch[0].trim() : scenario.title.toLowerCase().slice(0, 20)
       const updated = [tag, ...existingTags.filter((t) => t !== tag)].slice(0, 20)
       updatePracticedTags(updated)
-      setRecsLoading(true)
-      fetch('/api/scene/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ practicedTags: updated }),
-      })
-        .then((r) => r.json())
-        .then((data) => { if (data.recommendations) setRecsWithCache(data.recommendations) })
-        .catch(() => {})
-        .finally(() => setRecsLoading(false))
+      fetchRecommendations(updated)
     }
     prevCompleteRef.current = isSessionComplete
-  }, [isSessionComplete, scenario, practicedTags, updatePracticedTags])
+  }, [isSessionComplete, scenario, practicedTags, updatePracticedTags, fetchRecommendations])
   const toggleHints = useCallback(() => {
     setShowHints((v) => !v)
   }, [])
@@ -510,7 +510,9 @@ export default function CoachPage() {
         const t = event.results[i][0].transcript
         event.results[i].isFinal ? (final += t) : (interim += t)
       }
-      setInputText(final + interim)
+      const text = final + interim
+      setInputText(text)
+      inputTextRef.current = text
     }
     recognition.onend = () => {
       setIsListening(false)
@@ -700,7 +702,7 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
               <button onClick={() => {
                 if (sessionStarted) {
                   setSessionStarted(false); setMessages([]); setCorrections(null); setShowChinese(false); setShowHints(false);
-                  setNextHints({ pillars: [], vocabulary: [] }); setMissionProgress([false, false, false]);
+                  setNextHints({ pillars: [], vocabulary: [] });
                   setIsLoading(false); setIsSessionComplete(false); setShowFinishSuggestion(false); setShowOverlay(false); window.speechSynthesis.cancel()
                 } else {
                   router.push('/')
@@ -726,9 +728,9 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                 <button onClick={() => {
                   if (!scenario || isGenerating) return
                   setSessionStarted(false); setMessages([]); setCorrections(null); setShowChinese(false); setShowHints(false);
-                  setNextHints({ pillars: [], vocabulary: [] }); setMissionProgress([false, false, false]);
+                  setNextHints({ pillars: [], vocabulary: [] });
                   setIsLoading(false); setIsSessionComplete(false); setShowFinishSuggestion(false); setShowOverlay(false); window.speechSynthesis.cancel()
-                  generateScenario(`similar to "${scenario.title}" (${scenario.badge}), same theme and difficulty`)
+                  generateScenario(`similar to "${scenario.title}" (${scenario.badge}), same theme and difficulty`, scenario)
                 }}
                   className="rounded-full px-5 py-2 text-sm font-bold text-white transition-all duration-300 hover:scale-105 hover:shadow-[0_8px_28px_-8px_rgba(38,38,38,0.4)] active:scale-[0.95] shadow-md"
                   style={{ backgroundColor: '#262626' }}>
@@ -760,7 +762,7 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
 
               {/* ---- AI Scene Search Bar ---- */}
               <div className="coach-search mb-8 flex items-center gap-3">
-                <div className="relative flex-1 flex items-center bg-white/80 backdrop-blur-sm rounded-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] border border-stone-200/50 transition-all duration-300 hover:border-stone-300/60 hover:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.1)] focus-within:border-stone-300/70 focus-within:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.12)]">
+                <div className="relative flex-1 flex items-center bg-white/80 backdrop-blur-sm rounded-xl shadow-[0_2px_12px_-4px_rgba(0,0,0,0.06)] border border-stone-200/50 transition-all duration-300 hover:bg-white hover:border-stone-300/60 hover:shadow-[0_8px_28px_-10px_rgba(0,0,0,0.12)] focus-within:bg-white focus-within:border-stone-300/70 focus-within:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.12)]">
                   <input
                     value={searchPrompt}
                     onChange={(e) => setSearchPrompt(e.target.value)}
@@ -856,29 +858,35 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400">Recommended For You</span>
                   <span className="text-[10px] text-stone-300">✨</span>
-                  <span className="text-[10px] text-stone-400">(基于你的练习记录智能推荐)</span>
+                  <button onClick={refreshRecommendations} disabled={recsLoading}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-stone-400 hover:text-stone-600 hover:bg-stone-200/60 transition-all duration-200 active:scale-90 disabled:opacity-40">
+                    <svg className={`h-3.5 w-3.5 ${recsLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                    </svg>
+                    Refresh
+                  </button>
                 </div>
                 <div className="transition-all duration-700 ease-out" style={{ opacity: recsLoading ? 0.3 : 1, transform: recsLoading ? 'translateY(4px)' : 'translateY(0)' }}>
                 {recsLoading ? (
-                  <div className="flex gap-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-14 w-48 rounded-xl bg-stone-100/60 animate-pulse" style={{ animationDelay: `${i * 0.1}s` }} />
+                  <div className="flex flex-nowrap gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-16 w-52 rounded-xl bg-stone-100/60 animate-pulse" style={{ animationDelay: `${i * 0.08}s` }} />
                     ))}
                   </div>
                 ) : recommendations.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-nowrap gap-3" key={recsKey}>
                     {recommendations.map((rec, i) => (
                       <button
                         key={i}
                         onClick={() => { if (!isGenerating) generateScenario(rec.prompt) }}
                         disabled={isGenerating}
-                        className="group flex items-center gap-2.5 rounded-xl border border-stone-200/50 bg-white/60 backdrop-blur-sm px-4 py-2.5 text-sm shadow-[0_2px_8px_-4px_rgba(0,0,0,0.04)] transition-all duration-300 hover:bg-white/90 hover:border-stone-300/70 hover:shadow-[0_8px_28px_-10px_rgba(0,0,0,0.15)] active:scale-[0.97] disabled:opacity-50 hover:-translate-y-0.5"
-                        style={{ animation: `recIn 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) ${i * 0.1}s both` }}
+                        className="group flex items-center gap-3 rounded-xl border border-stone-200/50 bg-white/60 backdrop-blur-sm px-5 py-3 text-sm shadow-[0_2px_8px_-4px_rgba(0,0,0,0.04)] transition-all duration-300 hover:bg-white/90 hover:border-stone-300/70 hover:shadow-[0_8px_28px_-10px_rgba(0,0,0,0.15)] active:scale-[0.97] disabled:opacity-50 hover:-translate-y-0.5"
+                        style={{ animation: `recIn 0.6s cubic-bezier(0.21, 0.89, 0.32, 1) ${i * 0.08}s both` }}
                       >
-                        <span className="text-base">{rec.badge.match(/^\S+/)?.[0] || '🎯'}</span>
-                        <div className="text-left">
-                          <p className="text-xs font-medium text-stone-700">{rec.title}</p>
-                          <p className="text-[10px] text-stone-400">{rec.badgeZh}</p>
+                        <span className="text-lg">{rec.badge.match(/^\S+/)?.[0] || '🎯'}</span>
+                        <div className="text-left min-w-0">
+                          <p className="text-sm font-semibold text-stone-700 truncate">{rec.title}</p>
+                          <p className="text-xs text-stone-400 truncate">{rec.badgeZh.replace(/^\S+\s*/, '')}</p>
                         </div>
                       </button>
                     ))}
@@ -974,37 +982,48 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                         )}
                       </div>
                     ))}
+                    {isLoading && (
+                      <div className="flex items-start gap-3 animate-in">
+                        <img src="/nailong/nailong.webp" alt="Nai" className="shrink-0 mt-1 w-9 h-9 rounded-full object-cover"
+                          style={{ backgroundColor: '#F5F3F0' }} />
+                        <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm px-5 py-3.5"
+                          style={{ backgroundColor: '#F5F3F0' }}>
+                          <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '0s' }} />
+                          <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '0.15s' }} />
+                          <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '0.3s' }} />
+                        </div>
+                      </div>
+                    )}
                     <div ref={chatEndRef} />
                   </div>
                 </div>
 
                 {/* ========== RIGHT: Panel (30%) ========== */}
-                <div className="flex-[3.5] shrink-0 hidden md:block">
-                  <div className="sticky top-0 rounded-3xl border border-stone-200/60 bg-white/70 backdrop-blur-xl p-5 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] max-h-full overflow-y-auto">
+                <div className="flex-[3.5] shrink-0 hidden md:flex flex-col gap-4">
 
-                    {/* 🏆 Mission Goals */}
-                    {scenario.goals && (
-                      <div className="coach-panel-item mb-4 pb-3 border-b border-stone-200/40">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-1.5">
+                  {/* 🏆 Mission Goals — separate container */}
+                  {scenario.goals && (
+                    <div className="rounded-3xl border border-stone-200/60 bg-white/70 backdrop-blur-xl p-5 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)]">
+                      <div className="mb-3 pb-2 border-b border-stone-200/40">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-400 flex items-center gap-1.5">
                           <span>🏆</span> Mission Goals
                         </p>
-                        <div className="space-y-1.5">
-                          {scenario.goals.map((goal, i) => {
-                            const done = missionProgress[i] || isSessionComplete
-                            return (
-                              <div key={i} className={`flex items-start gap-2 text-xs ${done ? 'text-emerald-600' : 'text-stone-400'}`}>
-                                <span className={`shrink-0 mt-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${done ? 'bg-emerald-100 text-emerald-600' : 'bg-stone-100 text-stone-300'}`}>
-                                  {done ? '✓' : `${i + 1}`}
-                                </span>
-                                <span className={done ? 'line-through decoration-emerald-300/50' : ''}>
-                                  {showChinese ? goal.textZh : goal.text}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
                       </div>
-                    )}
+                      <div className="space-y-2">
+                        {scenario.goals.map((goal, i) => (
+                          <div key={i} className="flex items-start gap-2.5 text-sm text-stone-700">
+                            <span className="shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold bg-stone-100 text-stone-500">
+                              {i + 1}
+                            </span>
+                            <span>{showChinese ? goal.textZh : goal.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Corrections & Hints — sticky panel */}
+                  <div className="sticky top-0 rounded-3xl border border-stone-200/60 bg-white/70 backdrop-blur-xl p-5 shadow-[0_2px_20px_-4px_rgba(0,0,0,0.06)] max-h-full overflow-y-auto">
 
                     {/* 📝 CORRECTIONS & SUGGESTIONS */}
                     <div className="coach-panel-item mb-3">
@@ -1160,7 +1179,7 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                       </div>
                     </div>
                   )}
-                  <div className="relative flex-1 flex items-center bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 shadow-slate-900/5 transition-all duration-300 hover:border-stone-300/60 hover:shadow-[0_6px_28px_-10px_rgba(0,0,0,0.15)] focus-within:border-stone-300/70 focus-within:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.18)]">
+                  <div className="relative flex-1 flex items-center bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200 shadow-slate-900/5 transition-all duration-300 hover:bg-white hover:border-stone-300/60 hover:shadow-[0_8px_32px_-10px_rgba(0,0,0,0.18)] focus-within:bg-white focus-within:border-stone-300/70 focus-within:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.18)]">
                     <button type="button" onClick={toggleListening}
                       className={`shrink-0 ml-3 p-2 rounded-xl transition-all duration-200 ${isListening ? 'bg-rose-100 text-rose-600 animate-pulse shadow-sm' : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100/60'}`}
                       title={isListening ? 'Stop recording' : 'Start voice input'}>
@@ -1200,10 +1219,8 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                     <div className="bg-emerald-50/60 rounded-2xl border border-emerald-200/30 p-4 mb-4 text-left">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400 mb-2">🏆 Mission Goals</p>
                       {scenario.goals.map((goal, i) => (
-                        <p key={i} className="text-xs text-stone-600 mb-1 last:mb-0">
-                          <span className={missionProgress[i] ? 'text-emerald-600' : 'text-stone-400'}>
-                            {missionProgress[i] ? '✓' : '○'} {goal.text}
-                          </span>
+                        <p key={i} className="text-xs text-stone-500 mb-1 last:mb-0">
+                          ○ {goal.text}
                         </p>
                       ))}
                     </div>
@@ -1228,7 +1245,7 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                     <button onClick={() => {
                       setSessionStarted(false); setMessages([]); setCorrections(null); setShowChinese(false);
                       setShowHints(false); setNextHints({ pillars: [], vocabulary: [] });
-                      setMissionProgress([false, false, false]); setIsLoading(false);
+                      setIsLoading(false);
                       setIsSessionComplete(false); setShowFinishSuggestion(false); setShowOverlay(false); window.speechSynthesis.cancel()
                     }}
                       className="w-full bg-slate-900 text-white rounded-xl px-5 py-3 font-bold tracking-wide hover:bg-slate-800 transition-all active:scale-[0.97]">
@@ -1237,7 +1254,7 @@ function pickThemeStyle(scenario: ScenarioSeed): ThemeStyle {
                     <button onClick={() => {
                       setSessionStarted(false); setMessages([]); setCorrections(null); setShowChinese(false);
                       setShowHints(false); setNextHints({ pillars: [], vocabulary: [] });
-                      setMissionProgress([false, false, false]); setIsLoading(false);
+                      setIsLoading(false);
                       setIsSessionComplete(false); setShowFinishSuggestion(false); setShowOverlay(false); window.speechSynthesis.cancel()
                       setScenario(SEED_SCENARIOS[Math.floor(Math.random() * SEED_SCENARIOS.length)])
                     }}

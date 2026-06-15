@@ -3,6 +3,7 @@ import { PrismaClient } from '../src/generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import Parser from 'rss-parser'
+// @ts-expect-error jsdom has no types
 import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 
@@ -99,7 +100,7 @@ async function fetchAndExtract(url: string, rssHtml?: string): Promise<{
   }
 
   const textContent = article.textContent.trim()
-  const htmlContent = article.content.trim()
+  const htmlContent = (article.content || '').trim()
   const excerpt = textContent.slice(0, 300).replace(/\s+/g, ' ').trim()
 
   return { textContent, htmlContent, imageUrl, excerpt }
@@ -130,17 +131,24 @@ async function processWithDeepSeek(
           role: 'system',
           content: `You are an English learning assistant. Given an English news article, extract content for Chinese-speaking IELTS learners.
 
+A word's meaning often depends on the phrase it appears in (e.g. "give up" vs "give in", "look after" vs "look into"). Phrases, phrasal verbs, and collocations are just as important as individual words — they show how words are actually used in context.
+
 Return JSON with:
 - titleZh: Chinese translation of the title
 - summaryZh: One-paragraph Chinese summary (catchy, like a digest)
-- vocabItems: Array of 5-10 key vocabulary items useful for IELTS learners
+- vocabItems: Array of key vocabulary items useful for IELTS learners
 
 Each vocabItem has:
 - word: the word/phrase
 - type: "word" | "phrase" | "expression"
 - partOfSpeech: "noun" | "verb" | "adj." | "adv." etc (only for type=word)
 - definition: Chinese definition
-- contextSentence: The exact sentence from the article where this word appears (keep original English)`,
+- contextSentence: The exact sentence from the article where this word appears (keep original English)
+
+Guidelines:
+- Words and phrases are NOT mutually exclusive. A word can appear both as a standalone word (type="word") AND as part of a phrase (type="phrase") — they serve different learning purposes
+- Focus on phrases where the meaning cannot be inferred from individual words: phrasal verbs ("give up", "carry out"), idioms, and strong collocations ("heavy rain", "make a decision")
+- If the article uses a word in both a literal and a phrasal sense, include both`,
         },
         {
           role: 'user',

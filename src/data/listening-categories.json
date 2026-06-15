@@ -1,0 +1,452 @@
+{
+    "description":  "精听模块分类目录 — 场景对话为核心，知识听力为辅助",
+    "version":  "2.0",
+    "lastUpdated":  "2026-06-11",
+    "rules":  {
+                  "targetPoolSize":  6,
+                  "maxPoolSize":  30,
+                  "globalSceneLimit":  500
+              },
+    "categories":  [
+                       {
+                           "id":  "scene-campus",
+                           "name":  "校园生活",
+                           "nameZh":  "校园生活",
+                           "icon":  "🎓",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "campus-lecture",
+                                                     "name":  "课堂吐槽",
+                                                     "nameZh":  "课堂吐槽",
+                                                     "description":  "吐槽教授、考试太难、作业太多、上课走神、小组报告翻车",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "campus-groupwork",
+                                                     "name":  "小组协作",
+                                                     "nameZh":  "小组协作",
+                                                     "description":  "分工、拖延、被组员坑、意见不合、一起赶deadline",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "campus-courses",
+                                                     "name":  "选课/转专业",
+                                                     "nameZh":  "选课/转专业",
+                                                     "description":  "跟教授咨询选课、纠结转专业、求建议、踩坑经验分享",
+                                                     "dialogueType":  "A4",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "campus-dorm",
+                                                     "name":  "宿舍日常",
+                                                     "nameZh":  "宿舍日常",
+                                                     "description":  "室友矛盾、夜聊、查寝、借东西不还、生活习惯冲突",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "campus-activity",
+                                                     "name":  "校园活动",
+                                                     "nameZh":  "校园活动",
+                                                     "description":  "社团招新、招聘会、讲座、志愿者活动、比赛",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-daily",
+                           "name":  "日常生活",
+                           "nameZh":  "日常生活",
+                           "icon":  "🏠",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "daily-food",
+                                                     "name":  "餐饮",
+                                                     "nameZh":  "餐饮",
+                                                     "description":  "咖啡店点单、快餐、正式餐厅、朋友家吃饭、点外卖、跟服务员沟通特殊需求",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "daily-transit",
+                                                     "name":  "交通",
+                                                     "nameZh":  "交通",
+                                                     "description":  "坐地铁、公交、打车、共享单车、问路、买票遇到问题",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "daily-shopping",
+                                                     "name":  "购物",
+                                                     "nameZh":  "购物",
+                                                     "description":  "超市购物、网购退货、砍价、商场逛街、跟店员沟通",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "daily-living",
+                                                     "name":  "居住",
+                                                     "nameZh":  "居住",
+                                                     "description":  "找房看房、跟房东沟通、家电坏了报修、收快递、跟邻居打交道",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "daily-emergency",
+                                                     "name":  "天气/突发",
+                                                     "nameZh":  "天气/突发",
+                                                     "description":  "下雨没带伞、停电、手机丢了、迷路了、钥匙锁家里",
+                                                     "dialogueType":  "A5",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-travel",
+                           "name":  "旅行出行",
+                           "nameZh":  "旅行出行",
+                           "icon":  "✈️",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "travel-prep",
+                                                     "name":  "行前准备",
+                                                     "nameZh":  "行前准备",
+                                                     "description":  "订机票、打包行李、查攻略、订酒店、办签证、跟旅行社沟通",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "travel-airport",
+                                                     "name":  "机场/海关",
+                                                     "nameZh":  "机场/海关",
+                                                     "description":  "值机、托运、安检、入境问答、海关申报、转机迷路",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "travel-lodging",
+                                                     "name":  "住宿",
+                                                     "nameZh":  "住宿",
+                                                     "description":  "酒店入住、换房、投诉、青旅社交、民宿沟通",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "travel-local",
+                                                     "name":  "当地体验",
+                                                     "nameZh":  "当地体验",
+                                                     "description":  "问路、跟当地人聊天、推荐景点、砍价纪念品、参加当地活动、坐当地交通工具",
+                                                     "dialogueType":  "A5",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "travel-accident",
+                                                     "name":  "旅途意外",
+                                                     "nameZh":  "旅途意外",
+                                                     "description":  "误机、行李丢、钱包被偷、语言不通、生病了、跟工作人员求助",
+                                                     "dialogueType":  "A5",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-social",
+                           "name":  "社交情感",
+                           "nameZh":  "社交情感",
+                           "icon":  "💬",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "social-invite",
+                                                     "name":  "邀约",
+                                                     "nameZh":  "邀约",
+                                                     "description":  "约朋友出去玩、婉拒邀请、改时间、被放鸽子",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "social-chat",
+                                                     "name":  "闲聊",
+                                                     "nameZh":  "闲聊",
+                                                     "description":  "聊天气、兴趣爱好、最近看的剧、周末干了什么、八卦",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "social-emotion",
+                                                     "name":  "情绪表达",
+                                                     "nameZh":  "情绪表达",
+                                                     "description":  "安慰朋友、真诚道歉、分享好消息、吵架和好、跟家人打电话",
+                                                     "dialogueType":  "A3",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "social-vent",
+                                                     "name":  "吐槽",
+                                                     "nameZh":  "吐槽",
+                                                     "description":  "吐槽老板、吐槽室友、吐槽陌生人、吐槽服务、抱怨生活",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "social-holiday",
+                                                     "name":  "节日",
+                                                     "nameZh":  "节日",
+                                                     "description":  "生日惊喜、节日计划、送礼、跨年派对、庆祝活动",
+                                                     "dialogueType":  "A1",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-workplace",
+                           "name":  "职场沟通",
+                           "nameZh":  "职场沟通",
+                           "icon":  "💼",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "workplace-jobhunt",
+                                                     "name":  "求职面试",
+                                                     "nameZh":  "求职面试",
+                                                     "description":  "面试问答、发follow-up邮件、拒offer、被拒后沟通、谈薪资",
+                                                     "dialogueType":  "A4",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "workplace-daily",
+                                                     "name":  "日常工作",
+                                                     "nameZh":  "日常工作",
+                                                     "description":  "同事闲聊、被布置任务、问问题、带新人、跟老板汇报",
+                                                     "dialogueType":  "A4",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 },
+                                                 {
+                                                     "id":  "workplace-meeting",
+                                                     "name":  "会议",
+                                                     "nameZh":  "会议",
+                                                     "description":  "听不懂会议、发言、汇报进度、头脑风暴、跟客户开会",
+                                                     "dialogueType":  "A4",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "workplace-problem",
+                                                     "name":  "职场难题",
+                                                     "nameZh":  "职场难题",
+                                                     "description":  "被催进度、犯错了怎么跟老板说、请假、同事冲突、谈加薪",
+                                                     "dialogueType":  "A4",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  30
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-health",
+                           "name":  "健康/医疗",
+                           "nameZh":  "健康/医疗",
+                           "icon":  "🏥",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "health-doctor",
+                                                     "name":  "看病",
+                                                     "nameZh":  "看病",
+                                                     "description":  "预约挂号、描述症状、医生问诊、拿检查结果、转诊",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "health-pharmacy",
+                                                     "name":  "药房",
+                                                     "nameZh":  "药房",
+                                                     "description":  "买药、问用法用量、处方药、过敏咨询、药剂师建议",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "health-hospital",
+                                                     "name":  "医院",
+                                                     "nameZh":  "医院",
+                                                     "description":  "急诊、手术前沟通、探望病人、出院手续、跟护士沟通",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "health-fitness",
+                                                     "name":  "健身",
+                                                     "nameZh":  "健身",
+                                                     "description":  "办卡、问器械用法、跟教练沟通、约课、跟健身伙伴交流",
+                                                     "dialogueType":  "A2",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "scene-professional",
+                           "name":  "专业英语",
+                           "nameZh":  "专业英语",
+                           "icon":  "⚙️",
+                           "isCore":  true,
+                           "type":  "scene",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "professional-mechanical",
+                                                     "name":  "机械工程",
+                                                     "nameZh":  "机械工程",
+                                                     "description":  "看图纸、车间操作、质检、设备故障排查、材料选择讨论",
+                                                     "dialogueType":  "B",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "professional-automotive",
+                                                     "name":  "汽车",
+                                                     "nameZh":  "汽车",
+                                                     "description":  "维修保养、试驾体验、事故处理、改装讨论、检测诊断",
+                                                     "dialogueType":  "B",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "professional-cs",
+                                                     "name":  "计算机/AI",
+                                                     "nameZh":  "计算机/AI",
+                                                     "description":  "debug讨论、部署上线、code review、需求沟通、技术方案选型",
+                                                     "dialogueType":  "B",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "professional-trade",
+                                                     "name":  "外贸",
+                                                     "nameZh":  "外贸",
+                                                     "description":  "询盘、报价、交期谈判、质量争议、验货沟通、物流问题",
+                                                     "dialogueType":  "B",
+                                                     "targetPoolSize":  6,
+                                                     "maxPoolSize":  20
+                                                 }
+                                             ]
+                       },
+                       {
+                           "id":  "knowledge",
+                           "name":  "知识听力",
+                           "nameZh":  "知识听力",
+                           "icon":  "📚",
+                           "isCore":  false,
+                           "type":  "knowledge",
+                           "subcategories":  [
+                                                 {
+                                                     "id":  "knowledge-tech",
+                                                     "name":  "科技",
+                                                     "nameZh":  "科技",
+                                                     "description":  "AI进展、编程语言、互联网发展、科技趋势",
+                                                     "dialogueType":  "C1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-nature",
+                                                     "name":  "自然/环境",
+                                                     "nameZh":  "自然/环境",
+                                                     "description":  "气候变化、生态保护、新能源、动物行为",
+                                                     "dialogueType":  "C1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-business",
+                                                     "name":  "商业经济",
+                                                     "nameZh":  "商业经济",
+                                                     "description":  "商业趋势、经济分析、创业故事、市场现象",
+                                                     "dialogueType":  "C2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-society",
+                                                     "name":  "人文社会",
+                                                     "nameZh":  "人文社会",
+                                                     "description":  "社会现象、教育话题、文化差异、生活方式",
+                                                     "dialogueType":  "C2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-history",
+                                                     "name":  "历史",
+                                                     "nameZh":  "历史",
+                                                     "description":  "历史故事、人物传记、重大事件、文明发展",
+                                                     "dialogueType":  "C1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-health",
+                                                     "name":  "健康生活",
+                                                     "nameZh":  "健康生活",
+                                                     "description":  "健康科普、营养知识、睡眠运动、心理健康",
+                                                     "dialogueType":  "C2",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-sports",
+                                                     "name":  "运动科学",
+                                                     "nameZh":  "运动科学",
+                                                     "description":  "运动生理、训练科学、体育营养、运动损伤、体育产业、运动心理学",
+                                                     "dialogueType":  "C1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 },
+                                                 {
+                                                     "id":  "knowledge-psychology",
+                                                     "name":  "心理/认知",
+                                                     "nameZh":  "心理/认知",
+                                                     "description":  "认知偏见、记忆机制、决策心理学、社会心理学、发展心理学、情绪管理",
+                                                     "dialogueType":  "C1",
+                                                     "targetPoolSize":  8,
+                                                     "maxPoolSize":  20
+                                                 }
+                                             ]
+                       }
+                   ]
+}

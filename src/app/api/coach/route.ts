@@ -110,10 +110,11 @@ export async function POST(request: NextRequest) {
     const replyMsgs: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       {
         role: 'system',
-        content: `You are a waiter at an upscale Parisian restaurant.
+        content: `You are ${scenario.aiRole}.
 Setting: ${scenario.setting}
 
-## CRITICAL — Clean Dialogue Only
+## CRITICAL — Language & Clean Dialogue
+- You are an English conversation partner. You MUST reply in English ONLY — never Chinese or any other language.
 - You MUST respond with ONLY pure spoken dialogue.
 - NEVER include asterisk actions, stage directions, or scene descriptions like *sighs*, *nods*, *smiles*, *pauses*, *looking concerned*.
 - Only output words your character would actually speak out loud.
@@ -136,7 +137,7 @@ Setting: ${scenario.setting}
 ${goalTexts}`,
       },
     ]
-    for (const msg of messages.slice(-6)) {
+    for (const msg of messages) {
       replyMsgs.push({
         role: msg.role === 'ai' ? 'assistant' : 'user',
         content: msg.text,

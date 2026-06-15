@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
       where.readAt = null
     } else if (filter === 'history') {
       where.readAt = { not: null }
+    } else if (filter === 'favorites') {
+      where.favoritedAt = { not: null }
     }
 
     const articles = await prisma.article.findMany({

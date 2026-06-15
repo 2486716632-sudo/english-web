@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Brain, Monitor, FlaskConical, Cog, Globe, TrendingUp, Clock, Users, HeartPulse, Briefcase } from 'lucide-react'
 
 interface ArticleItem {
@@ -110,11 +111,13 @@ function daysAgo(dateStr: string) {
   return `${years} year${years > 1 ? 's' : ''} ago`
 }
 
-function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
+// Module-level scroll position — set by card onClick, read by component on mount
+let _rdSavedScroll: number | null = null
+
+function SectionRow({ articles, showZh, onToggleZh }: {
   articles: ArticleItem[]
   showZh: Record<number, boolean>
   onToggleZh: (id: number) => void
-  onCardClick: (id: number) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -170,10 +173,11 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
           return (
             <div
               key={a.id}
-              className="group cursor-pointer shrink-0 snap-start"
-              style={{ width: 'clamp(320px, 60vw, 440px)' }}
-              onClick={() => onCardClick(a.id)}
+              className="shrink-0 snap-start"
             >
+              <Link href={`/reading/${a.id}`} onClick={() => { _rdSavedScroll = window.scrollY }}
+                className="group cursor-pointer block"
+                style={{ width: 'clamp(320px, 60vw, 440px)' }}>
               <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden shadow-sm transition-shadow duration-300 group-hover:shadow-md">
                 {a.imageUrl ? (
                   <img
@@ -208,6 +212,7 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
                   {daysAgo(a.publishedAt || a.createdAt)}
                 </p>
               </div>
+            </Link>
             </div>
           )
         })}
@@ -231,22 +236,58 @@ function SectionRow({ articles, showZh, onToggleZh, onCardClick }: {
   )
 }
 
+// Module-level cache — survives page unmount/remount within same session
+let articlesCache: ArticleItem[] | null = null
+
 export default function ReadingPage() {
   const router = useRouter()
-  const [articles, setArticles] = useState<ArticleItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [articles, setArticles] = useState<ArticleItem[]>(articlesCache || [])
+  const [loading, setLoading] = useState(!articlesCache)
   const [error, setError] = useState(false)
   const [showZh, setShowZh] = useState<Record<number, boolean>>({})
-  const [unreadCount, setUnreadCount] = useState(0)
+  const restoredRef = useRef(false)
+
+  // Read + clear module-level scroll var (fresh entry = no restore)
+  const [savedScroll] = useState(() => {
+    const v = _rdSavedScroll
+    _rdSavedScroll = null
+    return v
+  })
+
+  // Restore scroll position — module-level var _rdSavedScroll is set by card onClick
+  useLayoutEffect(() => {
+    if (savedScroll === null || restoredRef.current) return
+    const target = savedScroll
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight
+    if (maxScroll >= target) {
+      restoredRef.current = true
+      // Multiple scroll attempts to override Next.js auto-scroll
+      window.scrollTo(0, target)
+      let attempts = 0
+      function retry() {
+        if (++attempts > 20) return
+        if (window.scrollY === target) return
+        window.scrollTo(0, target)
+        requestAnimationFrame(retry)
+      }
+      requestAnimationFrame(retry)
+    }
+  })
 
   const loadArticles = useCallback(() => {
-    setLoading(true)
+    // Cached — use it, no background refresh (YouTube-style: articles stay until next session)
+    if (articlesCache) {
+      setArticles(articlesCache)
+      setLoading(false)
+      return
+    }
     setError(false)
-    fetch('/api/reading?filter=new')
+    fetch('/api/reading')
       .then((r) => r.json())
       .then((data) => {
-        setArticles(data.articles || [])
-        setUnreadCount(data.articles?.length || 0)
+        const items = data.articles || []
+        articlesCache = items
+        setArticles(items)
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false))
@@ -261,25 +302,29 @@ export default function ReadingPage() {
       {/* Header */}
       <header className="shrink-0 border-b px-8 md:px-14 py-5" style={{ borderColor: 'rgba(0,0,0,0.04)' }}>
         <div className="flex items-center justify-between">
-          <button onClick={() => router.push('/')}
-            className="rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#F0F0F0', color: '#757575' }}>
-            ← Back
-          </button>
+          <Link href="/"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+            style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          </Link>
           <h1 className="text-xl md:text-2xl font-black tracking-widest uppercase" style={{ color: '#1A1A2E' }}>
             Reading
           </h1>
-          <button onClick={() => router.push('/reading/history')}
-            className="relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ backgroundColor: '#262626', color: '#FFFFFF' }}>
-            History
-            {unreadCount > 0 && (
-              <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle"
-                style={{ backgroundColor: '#FFFFFF', color: '#262626' }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href="/reading/history"
+              className="rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{ backgroundColor: '#262626', color: '#FFFFFF' }}>
+              History
+            </Link>
+            <Link href="/reading/favorites"
+              className="rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{ backgroundColor: '#262626', color: '#FFFFFF' }}>
+              Favorites
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -336,7 +381,6 @@ export default function ReadingPage() {
                     articles={items}
                     showZh={showZh}
                     onToggleZh={(id) => setShowZh((prev) => ({ ...prev, [id]: !prev[id] }))}
-                    onCardClick={(id) => router.push(`/reading/${id}`)}
                   />
                 </section>
               )

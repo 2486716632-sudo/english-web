@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const DAILY_TARGET_KEY = 'english-assistant-daily-target'
 
@@ -16,7 +16,14 @@ export default function VocabularyPage() {
   const router = useRouter()
 
   const [showSettings, setShowSettings] = useState(false)
-  const [dailyTarget, setDailyTarget] = useState(getStoredTarget)
+  const [dailyTarget, setDailyTarget] = useState(15)
+
+  // Hydrate from localStorage after mount
+  useEffect(() => {
+    const stored = localStorage.getItem(DAILY_TARGET_KEY)
+    const num = stored ? parseInt(stored, 10) : 15
+    setDailyTarget(Math.min(Math.max(num, 1), 100))
+  }, [])
 
   // Save daily target
   const saveDailyTarget = useCallback((val: number) => {
@@ -25,28 +32,27 @@ export default function VocabularyPage() {
     localStorage.setItem(DAILY_TARGET_KEY, String(clamped))
   }, [])
 
-  // Start study with user's daily target
+  // Go to daily study dashboard
   const startStudy = useCallback(() => {
-    router.push(`/words/study?dailyTarget=${dailyTarget}`)
-  }, [router, dailyTarget])
+    router.push('/words/dashboard')
+  }, [router])
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F8F6F4' }}>
       <div className="w-full px-6 md:px-12 pt-6 pb-2">
         <button onClick={() => router.push('/')}
-          className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all hover:opacity-70 active:scale-[0.97]"
-          style={{ backgroundColor: '#F0F0F0', color: '#757575' }}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:opacity-60 active:scale-95 active:rotate-12"
+          style={{ backgroundColor: '#EDE8E3', color: '#a8a29e' }}
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back
         </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 -mt-4">
         <div className="w-full max-w-4xl mx-auto text-center mb-14">
-          <span className="inline-flex items-center justify-center rounded-[1.25rem] mb-7 h-24 w-24 animate-book-icon hover:scale-105 hover:shadow-[0_8px_24px_-4px_rgba(59,46,36,0.25)] duration-300 cursor-default" style={{ backgroundColor: '#3B2E24' }}>
+          <span className="inline-flex items-center justify-center rounded-[1.25rem] mb-7 h-24 w-24 animate-book-icon hover:scale-105 hover:shadow-[0_8px_24px_-4px rgba(59,46,36,0.25)] duration-300 cursor-default" style={{ backgroundColor: '#3B2E24' }}>
             <svg className="h-[52px] w-[52px]" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
               {/* Book shadow/offset for depth */}
               <rect x="3" y="3" width="18" height="18" rx="1.8" fill="#D4A853" opacity="0.15" />
