@@ -22,9 +22,19 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 <br/>
 
+<div align="center">
+  <img src="public/screenshots/screenshot-home.png" alt="Home" width="80%"/>
+</div>
+
+<br/>
+
 ## ✨ Features
 
 ### 📖 Reading — 阅读中积累词汇
+<div align="center">
+  <img src="public/screenshots/screenshot-reading.png" alt="Reading" width="80%"/>
+</div>
+
 - 自动抓取 **The Conversation** RSS，每日更新英文推文
 - DeepSeek 自动提取词汇 + 生成中文摘要
 - 右侧 sticky 词汇面板，**word** 可加入 SRS 记忆库，**phrase / expression** 随看随学
@@ -43,9 +53,7 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 ### 🎧 Listening — 精听唱片机
 <div align="center">
-  <img src="public/screenshots/screenshot-scenes.png" alt="Scenes list" width="30%"/>&nbsp;&nbsp;
-  <img src="public/screenshots/screenshot-cdplayer.png" alt="CD player" width="30%"/>&nbsp;&nbsp;
-  <img src="public/screenshots/screenshot-subtitles.png" alt="Subtitles" width="30%"/>
+  <img src="public/screenshots/screenshot-scenes.png" alt="Scenes list" width="80%"/>
 </div>
 
 - **场景对话**：基于 A1-A5 + B 六类关系模型（闲聊 / 服务 / 亲密 / 权力 / 陌生人 / 专业讨论），模拟真实对话
@@ -54,6 +62,10 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 - TTS 音频逐行播放，中英对照
 
 ### 🤖 AI Coach — 口语对练
+<div align="center">
+  <img src="public/screenshots/screenshot-coach.png" alt="AI Coach" width="80%"/>
+</div>
+
 - 情景口语练习，8 轮对话 + AI 判定结束
 - 场景系统：DeepSeek 按主题生成练习场景
 - 智能推荐防茧房，语音输入（手动触发）
