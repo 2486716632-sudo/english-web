@@ -45,7 +45,7 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 <div align="center">
   <img src="public/screenshots/screenshot-words-daily.png" alt="Daily study" width="32%"/>&nbsp;&nbsp;
   <img src="public/screenshots/screenshot-words-front.png" alt="Card front" width="32%"/>&nbsp;&nbsp;
-  <img src="public/screenshots/screenshot-wordpacks.png" alt="Word packs" width="32%"/>
+  <img src="public/screenshots/screenshot-words-back.png" alt="Card back" width="32%"/>
 </div>
 
 - **2000 IELTS 核心词汇**（550 手写精编 + 1450 AI 生成）
