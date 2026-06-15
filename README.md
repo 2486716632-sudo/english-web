@@ -67,7 +67,8 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 ### 🤖 AI Coach — 口语对练
 <div align="center">
-  <img src="public/screenshots/screenshot-coach.png" alt="AI Coach" width="80%"/>
+  <img src="public/screenshots/screenshot-coach-1.png" alt="AI Coach" width="48%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-coach-2.png" alt="AI Coach chat" width="48%"/>
 </div>
 
 - 情景口语练习，8 轮对话 + AI 判定结束
