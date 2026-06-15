@@ -71,7 +71,7 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
   <img src="public/screenshots/screenshot-coach-2.png" alt="AI Coach chat" width="48%"/>
 </div>
 
-- 情景口语练习，8 轮对话 + AI 判定结束
+- 情景口语练习，自然对话，随时可以结束
 - 场景系统：DeepSeek 按主题生成练习场景
 - 智能推荐防茧房，语音输入（手动触发）
 - 对话审计面板，回溯每一轮表现
