@@ -22,39 +22,6 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 <br/>
 
-## 📸 Screenshots
-
-<div align="center">
-  <table>
-    <tr>
-      <td><img src="public/screenshots/screenshot-home.png" alt="Home" width="400"/></td>
-      <td><img src="public/screenshots/screenshot-words.png" alt="Vocabulary SRS" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center"><b>Home</b></td>
-      <td align="center"><b>Vocabulary SRS</b></td>
-    </tr>
-    <tr>
-      <td><img src="public/screenshots/screenshot-listening.png" alt="Listening" width="400"/></td>
-      <td><img src="public/screenshots/screenshot-reading.png" alt="Reading" width="400"/></td>
-    </tr>
-    <tr>
-      <td align="center"><b>Listening</b></td>
-      <td align="center"><b>Reading</b></td>
-    </tr>
-    <tr>
-      <td><img src="public/screenshots/screenshot-coach.png" alt="AI Coach" width="400"/></td>
-      <td></td>
-    </tr>
-    <tr>
-      <td align="center"><b>AI Coach</b></td>
-      <td></td>
-    </tr>
-  </table>
-</div>
-
-<br/>
-
 ## ✨ Features
 
 ### 📖 Reading — 阅读中积累词汇
@@ -63,17 +30,28 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 - 右侧 sticky 词汇面板，**word** 可加入 SRS 记忆库，**phrase / expression** 随看随学
 - 正文彩色下划线标注，点击即查
 
-### 🎧 Listening — 精听唱片机
-- **场景对话**：基于 A1-A5 + B 六类关系模型（闲聊 / 服务 / 亲密 / 权力 / 陌生人 / 专业讨论），模拟真实对话
-- **知识听力**：C1 TED 风格单人叙述 + C2 播客风格专家访谈
-- DeepSeek 实时生成新场景，按需自动补货
-- TTS 音频逐行播放，中英对照
-
 ### 📝 Vocabulary SRS — 智能记忆
+<div align="center">
+  <img src="public/screenshots/screenshot-words-back.png" alt="Study card back" width="45%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-wordpacks.png" alt="Word packs" width="45%"/>
+</div>
+
 - **2000 IELTS 核心词汇**（550 手写精编 + 1450 AI 生成）
 - **SM-2 遗忘曲线算法**，双队列看板（待复习 → 掌握）
 - 20 个主题场景词包（厨房 / 汽车 / 机械工程 / 外贸 / 计算机…）
 - 每日目标追踪 + Custom word pack 自定义词包
+
+### 🎧 Listening — 精听唱片机
+<div align="center">
+  <img src="public/screenshots/screenshot-scenes.png" alt="Scenes list" width="30%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-cdplayer.png" alt="CD player" width="30%"/>&nbsp;&nbsp;
+  <img src="public/screenshots/screenshot-subtitles.png" alt="Subtitles" width="30%"/>
+</div>
+
+- **场景对话**：基于 A1-A5 + B 六类关系模型（闲聊 / 服务 / 亲密 / 权力 / 陌生人 / 专业讨论），模拟真实对话
+- **知识听力**：C1 TED 风格单人叙述 + C2 播客风格专家访谈
+- DeepSeek 实时生成新场景，按需自动补货
+- TTS 音频逐行播放，中英对照
 
 ### 🤖 AI Coach — 口语对练
 - 情景口语练习，8 轮对话 + AI 判定结束
