@@ -1,7 +1,7 @@
 <div align="center">
   <br/>
   <h1>English Assistant</h1>
-  <p><b>An all-in-one English learning companion for Chinese-speaking English learners</b></p>
+  <p><b>An all-in-one English learning companion for English learners</b></p>
   <br/>
 
   <p>
@@ -18,7 +18,7 @@
 
 ---
 
-English Assistant 是一个面向 Chinese-speaking 英语学习者的 Web 应用，融合 **词汇 SRS（间隔重复）**、**精听训练**、**Reading 推文阅读**、**AI 口语教练** 四大核心模块，内容由 AI 实时生成，覆盖日常生活、学术、专业领域（机械工程、计算机/AI、汽车、外贸）等场景。
+English Assistant 是一个面向英语学习者的 Web 应用，融合 **词汇 SRS（间隔重复）**、**精听训练**、**Reading 推文阅读**、**AI 口语教练** 四大核心模块，内容由 AI 实时生成，覆盖日常生活、学术、专业领域（机械工程、计算机/AI、汽车、外贸）等场景。
 
 <br/>
 
