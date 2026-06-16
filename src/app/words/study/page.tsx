@@ -313,88 +313,93 @@ export default function StudyPage() {
     const exampleZhParts = currentWord.exampleZh ? currentWord.exampleZh.split(' ||| ') : []
 
     return (
-      <div className="w-full rounded-3xl border px-8 md:px-12 py-8 md:py-10 overflow-y-auto relative"
-        style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 20px -4px rgba(0,0,0,0.06)', minHeight: 'min(60vh, 560px)' }}
+      <div className="w-full rounded-3xl border px-8 md:px-12 py-8 md:py-10 relative flex flex-col overflow-hidden"
+        style={{ maxHeight: 'calc(100vh - 150px)', backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 20px -4px rgba(0,0,0,0.06)' }}
       >
         {/* Mastered — top right */}
         <button onClick={() => !submitting && handleBack('mastered')}
           disabled={submitting}
-          className="absolute top-4 right-4 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-[0.96] disabled:opacity-40"
+          className="absolute top-4 right-4 z-10 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-[0.96] disabled:opacity-40"
           style={{ backgroundColor: '#2B384A', color: '#FFFFFF' }}
         >
           {submitting ? '…' : 'Mastered'}
         </button>
 
-        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 pt-4" style={{ color: '#2F2F2F' }}>{currentWord.word}</h2>
-        {currentWord.phonetic && <p className="mb-7 text-sm md:text-base" style={{ color: '#888888' }}>{formatPhonetic(currentWord.phonetic)}</p>}
+        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 flex-shrink-0" style={{ color: '#2F2F2F' }}>{currentWord.word}</h2>
+        {currentWord.phonetic && <p className="mb-7 text-sm md:text-base flex-shrink-0" style={{ color: '#888888' }}>{formatPhonetic(currentWord.phonetic)}</p>}
 
-        {defEntries.length > 0 && (
-          <section className="mb-7">
-            <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Definition</h3>
-            <div className="space-y-2">
-              {defEntries.map((d, i) => (
-                <p key={i} className="text-base md:text-lg leading-relaxed" style={{ color: '#2F2F2F' }}>
-                  <span className="font-semibold" style={{ color: '#555555' }}>{d.pos}</span> {d.meaning}
-                </p>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {collocList.length > 0 && (
-          <section className="mb-7">
-            <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Collocations</h3>
-            <div className="flex flex-wrap gap-3">
-              {collocList.map((c, i) => {
-                const spaceIdx = c.lastIndexOf(' ')
-                const en = spaceIdx > 0 ? c.slice(0, spaceIdx) : c
-                const zh = spaceIdx > 0 ? c.slice(spaceIdx + 1) : ''
-                return (
-                  <span key={i} className="inline-flex items-baseline gap-1.5 px-4 py-2 text-sm"
-                    style={{ backgroundColor: '#F0F0F0', color: '#555555', borderRadius: '10px' }}>
-                    <span className="font-medium">{en}</span>
-                    <span style={{ color: '#888888' }}>{zh}</span>
-                  </span>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        {currentWord.example && (
-          <section className="mb-7">
-            <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Example</h3>
-            <div className="space-y-4">
-              {exampleParts.map((ex, i) => (
-                <div key={i}>
-                  <p className="text-base md:text-lg leading-relaxed italic" style={{ color: '#2F2F2F' }}>
-                    &ldquo;{highlightWord(ex, currentWord.word)}&rdquo;
+        {/* Scrollable content area */}
+        <div className="overflow-y-auto min-h-0" style={{ flex: '0 1 auto' }}>
+          {defEntries.length > 0 && (
+            <section className="mb-7">
+              <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Definition</h3>
+              <div className="space-y-2">
+                {defEntries.map((d, i) => (
+                  <p key={i} className="text-base md:text-lg leading-relaxed" style={{ color: '#2F2F2F' }}>
+                    <span className="font-semibold" style={{ color: '#555555' }}>{d.pos}</span> {d.meaning}
                   </p>
-                  {exampleZhParts[i] &&
-                    <p className="mt-1.5 text-base md:text-lg leading-relaxed" style={{ color: '#555555' }}>{exampleZhParts[i]}</p>
-                  }
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Back buttons */}
-        <div className="flex gap-4 md:gap-5" style={{ maxWidth: showMistaken ? '100%' : '60%', margin: '0 auto' }}>
-          <button onClick={() => handleBack('next')} disabled={submitting}
-            className="flex-1 py-3.5 md:py-4 text-base md:text-lg font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-[0.96] disabled:opacity-40"
-            style={{ backgroundColor: '#202020', borderRadius: '14px' }}
-          >
-            Next
-          </button>
-          {showMistaken && (
-            <button onClick={() => handleBack('mistaken')} disabled={submitting}
-              className="flex-1 py-3.5 md:py-4 text-base md:text-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-[0.96] disabled:opacity-40"
-              style={{ backgroundColor: '#FCEAEB', color: '#B91C1C', borderRadius: '14px' }}
-            >
-              Mistaken
-            </button>
+                ))}
+              </div>
+            </section>
           )}
+
+          {collocList.length > 0 && (
+            <section className="mb-7">
+              <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Collocations</h3>
+              <div className="flex flex-wrap gap-3">
+                {collocList.map((c, i) => {
+                  const spaceIdx = c.lastIndexOf(' ')
+                  const en = spaceIdx > 0 ? c.slice(0, spaceIdx) : c
+                  const zh = spaceIdx > 0 ? c.slice(spaceIdx + 1) : ''
+                  return (
+                    <span key={i} className="inline-flex items-baseline gap-1.5 px-4 py-2 text-sm"
+                      style={{ backgroundColor: '#F0F0F0', color: '#555555', borderRadius: '10px' }}>
+                      <span className="font-medium">{en}</span>
+                      <span style={{ color: '#888888' }}>{zh}</span>
+                    </span>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+
+          {currentWord.example && (
+            <section className="mb-7">
+              <h3 className="mb-3 text-xs md:text-sm font-semibold uppercase tracking-[0.15em]" style={{ color: '#888888' }}>Example</h3>
+              <div className="space-y-4">
+                {exampleParts.map((ex, i) => (
+                  <div key={i}>
+                    <p className="text-base md:text-lg leading-relaxed italic" style={{ color: '#2F2F2F' }}>
+                      &ldquo;{highlightWord(ex, currentWord.word)}&rdquo;
+                    </p>
+                    {exampleZhParts[i] &&
+                      <p className="mt-1.5 text-base md:text-lg leading-relaxed" style={{ color: '#555555' }}>{exampleZhParts[i]}</p>
+                    }
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Back buttons — always visible */}
+        <div className="flex-shrink-0 pt-6">
+          <div className="flex gap-4 md:gap-5" style={{ maxWidth: showMistaken ? '100%' : '60%', margin: '0 auto' }}>
+            <button onClick={() => handleBack('next')} disabled={submitting}
+              className="flex-1 py-3.5 md:py-4 text-base md:text-lg font-semibold text-white transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-[0.96] disabled:opacity-40"
+              style={{ backgroundColor: '#202020', borderRadius: '14px' }}
+            >
+              Next
+            </button>
+            {showMistaken && (
+              <button onClick={() => handleBack('mistaken')} disabled={submitting}
+                className="flex-1 py-3.5 md:py-4 text-base md:text-lg font-semibold transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-[0.96] disabled:opacity-40"
+                style={{ backgroundColor: '#FCEAEB', color: '#B91C1C', borderRadius: '14px' }}
+              >
+                Mistaken
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
@@ -419,7 +424,7 @@ export default function StudyPage() {
 
     return (
       <>
-        <div className="w-full flex flex-col items-center select-none pt-20 md:pt-24"
+        <div className="w-full flex flex-col items-center justify-center select-none"
           style={{ minHeight: 'min(60vh, 560px)' }}
         >
           {currentWord.partOfSpeech && (
@@ -632,8 +637,8 @@ export default function StudyPage() {
       </div>
 
       {/* Card */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 min-h-0">
-        <div key={`${round}-${idx}`} className="w-full max-w-2xl mx-auto mb-4">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 md:px-12 min-h-0 overflow-hidden">
+        <div key={`${round}-${idx}`} className="w-full max-w-2xl mx-auto">
           {flipped ? renderBackCard() : renderFrontCard()}
         </div>
       </div>
