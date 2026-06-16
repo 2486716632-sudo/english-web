@@ -76,26 +76,91 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 - 智能推荐防茧房，语音输入（手动触发）
 - 对话审计面板，回溯每一轮表现
 
+### ✨ AI Assistant — 全局悬浮助手
+<div align="center">
+  <img src="public/screenshots/screenshot-assistant.png" alt="AI Assistant" width="48%"/>
+</div>
+
+- **全局悬浮球**，任意页面随叫随到
+- 查单词、问语法、翻译、用法辨析，即问即答
+- 结构化单词卡片：音标、词性、释义、搭配一目了然
+- 可拖拽位置，自动记忆
+
 <br/>
 
 ## 🚀 Quick Start
 
+### 前置条件
+
+- **Node.js 20+**
+- 一个 **Neon PostgreSQL** 数据库（免费，去 [neon.tech](https://neon.tech) 注册）
+- 一个 **DeepSeek API Key**（去 [platform.deepseek.com](https://platform.deepseek.com) 注册充值，几块钱用很久）
+
+### 1. 克隆并安装
+
 ```bash
-# 1. 安装依赖
-npm install
+git clone <仓库地址>
+cd english-web
+npm install          # 自动跑 prisma generate
+```
 
-# 2. 配置环境变量
+### 2. 配置环境变量
+
+```bash
 cp .env.example .env
-# 填入 DATABASE_URL（Neon PostgreSQL）和 DEEPSEEK_API_KEY
+```
 
-# 3. 初始化数据库
-npm run seed
+填入你的 `DATABASE_URL` 和 `DEEPSEEK_API_KEY`。
 
-# 4. 启动
+### 3. 建表 + 灌数据
+
+```bash
+npx prisma migrate deploy   # 建表（几秒）
+npm run seed                # 灌数据（约 2 秒）
+```
+
+seed 走快速通道：直接读取 `complete_seed_data.json`，导入 **2000 IELTS 词汇 + 849 主题词**，无需下载词典、无需调用 AI。
+
+### 4. （可选）预填所有听力场景
+
+听力模块有 **5 个示例场景**（含音频）已自带，开箱可听。其余 35 个子类需要批量生成一次场景和音频：
+
+```bash
+npx tsx scripts/generate-listening-dialogue.ts
+```
+
+这个过程会调用 DeepSeek API 生成场景文本 + Edge TTS 合成音频。音频是主要耗时——每个场景根据行数不同约 30-90 秒，总共预计 **2-3 小时**。可以挂着让它跑，或者分多次运行（脚本是幂等的，已生成的不会重复）。
+
+> 你也可以跳过这步，直接用 5 个示例场景开始学习。后续每听完一个场景，系统会自动补充新场景（含音频）。
+
+### 5. 启动
+
+```bash
 npm run dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000) 即可使用。
+
+### 开箱即用的功能
+
+| 功能 | 状态 |
+|------|------|
+| 词汇 SRS（2000 词 + 20 主题词包） | ✅ 立即可用 |
+| Reading（已有文章） | ✅ 数据库里已有数据 |
+| AI Coach 口语对练 | ✅ 可用，对话时调用 DeepSeek |
+| AI Assistant 悬浮球 | ✅ 可用 |
+| 听力（5 个示例场景） | ✅ 含音频，直接听 |
+| 听力（其他 35 个子类） | 需运行批量生成脚本，或系统按需自动补充 |
+
+### 按需使用的脚本
+
+| 命令 | 说明 |
+|------|------|
+| `npx tsx scripts/reading-push.ts` | 手动推送最新 Reading 文章 |
+| `npx tsx scripts/generate-listening-dialogue.ts` | 批量生成所有子类的听力场景（含音频，首次克隆后建议跑一次） |
+| `npx tsx scripts/generate-listening-audio.ts` | 单独为已有场景补全音频（跳过已有音频） |
+
+> **Reading 自动更新**：本项目通过 GitHub Actions 定时（每天 4 次）运行 `reading-push.ts`，自动抓取最新的 The Conversation 文章并推送至 Neon 数据库。如果你 fork 了项目，需要在自己仓库的 Settings → Secrets 中配置 `DATABASE_URL` 和 `DEEPSEEK_API_KEY`，Actions 会自动启用。
 
 <br/>
 
@@ -147,8 +212,8 @@ src/
 | `npm run build` | 生产构建 |
 | `npm run seed` | 初始化数据库（词汇 + 分类） |
 | `npm run push:reading` | 推送 Reading 文章 |
-| `npx tsx scripts/generate-listening-dialogue.ts` | 批量生成精听场景 |
-| `npx tsx scripts/generate-listening-audio.ts` | 批量生成 TTS 音频 |
+| `npx tsx scripts/generate-listening-dialogue.ts` | 批量生成听力场景（含音频） |
+| `npx tsx scripts/generate-listening-audio.ts` | 批量补全场景音频 |
 | `npx tsx scripts/reset-srs.ts` | 重置 SRS 记忆数据 |
 
 <br/>
@@ -160,7 +225,6 @@ src/
 - 渐进式动画（GSAP / Motion），不喧宾夺主
 - Mobile-friendly 响应式布局
 
-详见 [`VISION.md`](VISION.md)。
 
 <br/>
 

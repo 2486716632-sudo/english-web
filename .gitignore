@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -49,8 +50,13 @@ memory_current_task.md
 tmp/
 _check_progress.ts
 
-# generated audio
-public/listening/
+# generated audio (with sample scenes for new clones)
+public/listening/*
+!public/listening/campus-activity-1/**
+!public/listening/campus-course-1/**
+!public/listening/campus-dorm-1/**
+!public/listening/campus-group-1/**
+!public/listening/campus-lecture-1/**
 
 # typescript
 *.tsbuildinfo
@@ -61,3 +67,6 @@ next-env.d.ts
 # database
 dev.db
 prisma/ecdict/stardict.db
+
+# project docs (local only, not for public repo)
+/VISION.md

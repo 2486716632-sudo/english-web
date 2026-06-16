@@ -2794,8 +2794,91 @@ function loadEcdictData(): Map<string, EcdictEntry> {
   return map
 }
 
-// ========== 7. MAIN ==========
+// ========== 7. BAKED DATA FAST PATH ==========
+const BAKED_PATH = path.resolve(process.cwd(), 'prisma', 'complete_seed_data.json')
+
+interface BakedThemeWord {
+  word: string
+  phonetic: string | null
+  partOfSpeech: string
+  definition: string
+  collocations: string | null
+  example: string | null
+  exampleZh: string | null
+  imageUrl: string | null
+  theme: string
+}
+
+async function seedFromBaked(bakedPath: string): Promise<void> {
+  console.log('Found complete_seed_data.json — fast seeding (no ECDICT/DeepSeek)...')
+  const data: { ieltsWords: VocabEntry[]; themeWords: BakedThemeWord[] } = JSON.parse(fs.readFileSync(bakedPath, 'utf-8'))
+  const { PrismaClient } = await import('../src/generated/prisma/client')
+  const { PrismaNeon } = await import('@prisma/adapter-neon')
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! })
+  const prisma = new PrismaClient({ adapter })
+
+  const existing = await prisma.word.count()
+  if (existing > 0) {
+    console.log(`Database already has ${existing} words. Re-seeding...`)
+    await prisma.wordReview.deleteMany()
+    await prisma.word.deleteMany()
+  }
+
+  // IELTS words
+  const BATCH = 100
+  for (let i = 0; i < data.ieltsWords.length; i += BATCH) {
+    const batch = data.ieltsWords.slice(i, i + BATCH)
+    await prisma.word.createMany({
+      data: batch.map((e) => ({
+        word: e.word,
+        phonetic: e.phonetic ?? null,
+        partOfSpeech: e.partOfSpeech,
+        definition: e.definition,
+        collocations: e.collocations ?? null,
+        example: e.example ?? null,
+        exampleZh: e.exampleZh ?? null,
+        difficulty: 'IELTS',
+        source: 'ielts',
+      })),
+    })
+    if ((i + BATCH) % 500 === 0 || i + BATCH >= data.ieltsWords.length) {
+      console.log(`  Inserted ${Math.min(i + BATCH, data.ieltsWords.length)}/${data.ieltsWords.length} IELTS words`)
+    }
+  }
+
+  // Theme words
+  for (let i = 0; i < data.themeWords.length; i += BATCH) {
+    const batch = data.themeWords.slice(i, i + BATCH)
+    await prisma.word.createMany({
+      data: batch.map((w) => ({
+        word: w.word,
+        phonetic: w.phonetic,
+        partOfSpeech: w.partOfSpeech,
+        definition: w.definition,
+        collocations: w.collocations,
+        example: w.example,
+        exampleZh: w.exampleZh,
+        imageUrl: w.imageUrl,
+        theme: w.theme,
+        difficulty: 'THEME',
+        source: 'theme',
+      })),
+    })
+  }
+
+  const count = await prisma.word.count()
+  console.log(`✓ Seed complete: ${count} words imported (${data.ieltsWords.length} IELTS + ${data.themeWords.length} theme).`)
+  await prisma.$disconnect()
+}
+
+// ========== 8. MAIN ==========
 async function main() {
+  // Fast path: use pre-baked data if available
+  if (fs.existsSync(BAKED_PATH) && !process.argv.includes('--bake')) {
+    await seedFromBaked(BAKED_PATH)
+    return
+  }
+
   // ---- Build word list ----
   const builtInMap = new Map<string, VocabEntry>()
   for (const entry of getBuiltInWords()) {
@@ -2879,38 +2962,6 @@ async function main() {
 
   console.log(`Built ${finalEntries.length} vocabulary entries`)
 
-  // ---- Write to database ----
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! })
-  const prisma = new PrismaClient({ adapter })
-
-  const existing = await prisma.word.count()
-  if (existing > 0) {
-    console.log(`Database already has ${existing} words. Re-seeding...`)
-    await prisma.wordReview.deleteMany()
-    await prisma.word.deleteMany()
-  }
-
-  const BATCH = 100
-  for (let i = 0; i < finalEntries.length; i += BATCH) {
-    const batch = finalEntries.slice(i, i + BATCH)
-    await prisma.word.createMany({
-      data: batch.map((e) => ({
-        word: e.word,
-        phonetic: e.phonetic ?? null,
-        partOfSpeech: e.partOfSpeech,
-        definition: e.definition,
-        collocations: e.collocations ?? null,
-        example: e.example ?? null,
-        exampleZh: e.exampleZh ?? null,
-        difficulty: 'IELTS',
-        source: 'ielts',
-      })),
-    })
-    if ((i + BATCH) % 500 === 0 || i + BATCH >= finalEntries.length) {
-      console.log(`  Inserted ${Math.min(i + BATCH, finalEntries.length)}/${finalEntries.length} words`)
-    }
-  }
-
   // ---- Process theme word packs ----
   const THEMES = ['kitchen', 'car', 'clothing', 'restaurant', 'hotel', 'body', 'office', 'technology', 'school', 'sports', 'shopping', 'transportation', 'entertainment', 'weather', 'home', 'people', 'mechanical-engineering', 'computer-ai', 'automotive', 'foreign-trade']
   const SCENE_CACHE_PATH = path.resolve(process.cwd(), 'prisma', 'generated_scene_data.json')
@@ -2923,6 +2974,7 @@ async function main() {
     } catch { /* ignore */ }
   }
 
+  const allThemeWords: BakedThemeWord[] = []
   for (const theme of THEMES) {
     const themeWords = getThemeWords(theme)
     if (themeWords.length === 0) continue
@@ -2953,40 +3005,92 @@ async function main() {
       console.log(`  Fetched ${imgFetched} images`)
     }
 
-    // Insert theme words
-    let inserted = 0
-    for (let i = 0; i < themeWords.length; i += BATCH) {
-      const batch = themeWords.slice(i, i + BATCH)
-      await prisma.word.createMany({
-        data: batch.map((w) => {
-          const key = w.word.toLowerCase()
-          const ds = sceneCache[key]?.deepseek
-          const imgUrl = sceneCache[key]?.imageUrl || null
-          const ecdict = ecdictData.get(key)
-          return {
-            word: w.word,
-            phonetic: ecdict?.phonetic || ds?.phonetic || null,
-            partOfSpeech: w.partOfSpeech || ds?.partOfSpeech || '',
-            definition: w.definition || ecdict?.translation || ecdict?.definition || ds?.definition || '',
-            collocations: ds?.collocations || null,
-            example: ds?.examples?.[0]?.en || null,
-            exampleZh: ds?.examples?.[0]?.zh || null,
-            imageUrl: imgUrl,
-            theme,
-            difficulty: 'THEME',
-            source: 'theme',
-          }
-        }),
+    // Build theme word entries
+    for (const w of themeWords) {
+      const key = w.word.toLowerCase()
+      const ds = sceneCache[key]?.deepseek
+      const imgUrl = sceneCache[key]?.imageUrl || null
+      const ecdict = ecdictData.get(key)
+      allThemeWords.push({
+        word: w.word,
+        phonetic: ecdict?.phonetic || ds?.phonetic || null,
+        partOfSpeech: w.partOfSpeech || ds?.partOfSpeech || '',
+        definition: w.definition || ecdict?.translation || ecdict?.definition || ds?.definition || '',
+        collocations: ds?.collocations || null,
+        example: ds?.examples?.[0]?.en || null,
+        exampleZh: ds?.examples?.[0]?.zh || null,
+        imageUrl: imgUrl,
+        theme,
       })
-      inserted += batch.length
     }
-    console.log(`  Inserted ${inserted} "${theme}" words`)
+    console.log(`  Built ${themeWords.length} "${theme}" words`)
   }
 
   try { fs.writeFileSync(SCENE_CACHE_PATH, JSON.stringify(sceneCache, null, 2)) } catch {}
 
+  // ---- Write to database ----
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! })
+  const prisma = new PrismaClient({ adapter })
+
+  const existing = await prisma.word.count()
+  if (existing > 0) {
+    console.log(`Database already has ${existing} words. Re-seeding...`)
+    await prisma.wordReview.deleteMany()
+    await prisma.word.deleteMany()
+  }
+
+  const BATCH = 100
+
+  // ---- Insert IELTS words ----
+  for (let i = 0; i < finalEntries.length; i += BATCH) {
+    const batch = finalEntries.slice(i, i + BATCH)
+    await prisma.word.createMany({
+      data: batch.map((e) => ({
+        word: e.word,
+        phonetic: e.phonetic ?? null,
+        partOfSpeech: e.partOfSpeech,
+        definition: e.definition,
+        collocations: e.collocations ?? null,
+        example: e.example ?? null,
+        exampleZh: e.exampleZh ?? null,
+        difficulty: 'IELTS',
+        source: 'ielts',
+      })),
+    })
+    if ((i + BATCH) % 500 === 0 || i + BATCH >= finalEntries.length) {
+      console.log(`  Inserted ${Math.min(i + BATCH, finalEntries.length)}/${finalEntries.length} IELTS words`)
+    }
+  }
+
+  // ---- Insert theme words ----
+  for (let i = 0; i < allThemeWords.length; i += BATCH) {
+    const batch = allThemeWords.slice(i, i + BATCH)
+    await prisma.word.createMany({
+      data: batch.map((w) => ({
+        word: w.word,
+        phonetic: w.phonetic,
+        partOfSpeech: w.partOfSpeech,
+        definition: w.definition,
+        collocations: w.collocations,
+        example: w.example,
+        exampleZh: w.exampleZh,
+        imageUrl: w.imageUrl,
+        theme: w.theme,
+        difficulty: 'THEME',
+        source: 'theme',
+      })),
+    })
+  }
+
+  // ---- Bake output ----
+  if (process.argv.includes('--bake')) {
+    const baked = { ieltsWords: finalEntries, themeWords: allThemeWords }
+    fs.writeFileSync(BAKED_PATH, JSON.stringify(baked, null, 2))
+    console.log(`Baked ${baked.ieltsWords.length} IELTS + ${baked.themeWords.length} theme words to ${BAKED_PATH}`)
+  }
+
   const count = await prisma.word.count()
-  console.log(`✓ Seed complete: ${count} words imported.`)
+  console.log(`✓ Seed complete: ${count} words imported (${finalEntries.length} IELTS + ${allThemeWords.length} theme).`)
   await prisma.$disconnect()
 }
 

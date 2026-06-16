@@ -6,8 +6,23 @@
 
 import { prisma } from '@/lib/prisma'
 import { getSystemPrompt } from './listening-prompts'
+import { EdgeTTS } from 'node-edge-tts'
 import fs from 'fs'
 import path from 'path'
+
+const AUDIO_DIR = path.join(process.cwd(), 'public', 'listening')
+const VOICE_MAP: Record<string, string> = {
+  A: 'en-US-JennyNeural',        // female — default dialogue
+  B: 'en-US-ChristopherNeural',  // male
+  Narrator: 'en-US-JennyNeural', // C1 narrative
+  Host: 'en-US-ChristopherNeural', // C2 interview host
+  Guest: 'en-US-JennyNeural',    // C2 interview guest
+}
+
+/** Get the appropriate TTS voice for a speaker label. */
+function voiceForSpeaker(speaker: string): string {
+  return VOICE_MAP[speaker] || 'en-US-JennyNeural'
+}
 
 // ============ 接口定义 ============
 
@@ -225,10 +240,38 @@ export async function saveScene(
           })),
         },
       },
-      select: { id: true },
+      include: {
+        lines: {
+          orderBy: { lineOrder: 'asc' },
+        },
+      },
     })
 
-    return scene
+    // ---- Generate audio for each line ----
+    const sceneDir = path.join(AUDIO_DIR, scene.id)
+    fs.mkdirSync(sceneDir, { recursive: true })
+
+    for (const line of scene.lines) {
+      const audioPath = path.join(sceneDir, `line-${line.lineOrder}.mp3`)
+      const relativePath = `/listening/${scene.id}/line-${line.lineOrder}.mp3`
+      const voice = voiceForSpeaker(line.speaker)
+
+      try {
+        const tts = new EdgeTTS({ voice, rate: '0%', pitch: '0%', volume: '100%', timeout: 30000 })
+        await tts.ttsPromise(line.english, audioPath)
+        await prisma.listeningLine.update({
+          where: { id: line.id },
+          data: { audioUrl: relativePath },
+        })
+      } catch (err) {
+        console.warn(`[listening] Audio gen failed for line ${line.lineOrder}: ${err}`)
+      }
+
+      // Small delay between TTS calls
+      await new Promise(r => setTimeout(r, 200))
+    }
+
+    return { id: scene.id }
   } catch (err) {
     console.error(`[listening] Failed to save scene:`, err)
     return null
