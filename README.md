@@ -1,7 +1,7 @@
 <div align="center">
   <br/>
   <h1>English Assistant</h1>
-  <p><b>An all-in-one English learning companion for Chinese-speaking IELTS learners</b></p>
+  <p><b>An all-in-one English learning companion for Chinese-speaking English learners</b></p>
   <br/>
 
   <p>
@@ -18,7 +18,7 @@
 
 ---
 
-English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学习 Web 应用，融合 **词汇 SRS（间隔重复）**、**精听训练**、**Reading 推文阅读**、**AI 口语教练** 四大核心模块，内容由 DeepSeek 实时生成，覆盖日常生活、学术、专业领域（机械工程、计算机/AI、汽车、外贸）等场景。
+English Assistant 是一个面向 Chinese-speaking 英语学习者的 Web 应用，融合 **词汇 SRS（间隔重复）**、**精听训练**、**Reading 推文阅读**、**AI 口语教练** 四大核心模块，内容由 AI 实时生成，覆盖日常生活、学术、专业领域（机械工程、计算机/AI、汽车、外贸）等场景。
 
 <br/>
 
@@ -48,7 +48,7 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
   <img src="public/screenshots/screenshot-words-back.png" alt="Card back" width="32%"/>
 </div>
 
-- **2000 IELTS 核心词汇**（550 手写精编 + 1450 AI 生成）
+- **2000 核心词汇**（550 手写精编 + 1450 AI 生成）
 - **SM-2 遗忘曲线算法**，双队列看板（待复习 → 掌握）
 - 20 个主题场景词包（厨房 / 汽车 / 机械工程 / 外贸 / 计算机…）
 - 每日目标追踪 + Custom word pack 自定义词包
@@ -94,7 +94,7 @@ English Assistant 是一个面向 Chinese-speaking IELTS 学习者的英语学�
 
 - **Node.js 20+**
 - 一个 **Neon PostgreSQL** 数据库（免费，去 [neon.tech](https://neon.tech) 注册）
-- 一个 **DeepSeek API Key**（去 [platform.deepseek.com](https://platform.deepseek.com) 注册充值，几块钱用很久）
+- 一个兼容 OpenAI 格式的 API Key（默认用 DeepSeek，去 [platform.deepseek.com](https://platform.deepseek.com) 注册充值，几块钱用很久；也支持其他 OpenAI 兼容 API，修改 `DEEPSEEK_BASE_URL` 即可）
 
 ### 1. 克隆并安装
 
@@ -119,7 +119,7 @@ npx prisma migrate deploy   # 建表（几秒）
 npm run seed                # 灌数据（约 2 秒）
 ```
 
-seed 走快速通道：直接读取 `complete_seed_data.json`，导入 **2000 IELTS 词汇 + 849 主题词**，无需下载词典、无需调用 AI。
+seed 走快速通道：直接读取 `complete_seed_data.json`，导入 **2000 核心词汇 + 849 主题词**，无需下载词典、无需调用 AI。
 
 ### 4. （可选）预填所有听力场景
 
@@ -145,7 +145,7 @@ npm run dev
 
 | 功能 | 状态 |
 |------|------|
-| 词汇 SRS（2000 词 + 20 主题词包） | ✅ 立即可用 |
+| 词汇 SRS（2000 核心词 + 20 主题词包） | ✅ 立即可用 |
 | Reading（已有文章） | ✅ 数据库里已有数据 |
 | AI Coach 口语对练 | ✅ 可用，对话时调用 DeepSeek |
 | AI Assistant 悬浮球 | ✅ 可用 |
@@ -173,7 +173,7 @@ npm run dev
 | **Styling** | Tailwind CSS v4 |
 | **Database** | PostgreSQL (Neon Serverless) |
 | **ORM** | Prisma 7 |
-| **AI** | DeepSeek Chat API (json_object mode) |
+| **AI** | 兼容 OpenAI 格式的 API（默认 DeepSeek Chat） |
 | **Animation** | GSAP, Motion, Three.js / OGL |
 | **TTS** | Edge TTS (node-edge-tts) |
 | **Audio** | Kokoro.js |
@@ -231,5 +231,5 @@ src/
 ---
 
 <div align="center">
-  <p>Built with Next.js, TypeScript & DeepSeek</p>
+  <p>Built with Next.js & TypeScript · AI by DeepSeek (兼容 OpenAI 格式 API)</p>
 </div>
