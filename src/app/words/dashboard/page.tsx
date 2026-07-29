@@ -33,22 +33,36 @@ export default function DailyDashboard() {
   const router = useRouter()
   const [data, setData] = useState<QueueData>(cachedQueues || DEFAULT_QUEUES)
   const [loading, setLoading] = useState(!cachedQueues)
+  const [error, setError] = useState(false)
   const [dailyTarget, setDailyTarget] = useState(getStoredTarget)
   const [showSettings, setShowSettings] = useState(false)
 
-  useEffect(() => {
-    let ignore = false
-    fetch('/api/words/queues')
-      .then((r) => r.json())
+  const fetchQueues = useCallback(() => {
+    setError(false)
+    setLoading(true)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15000)
+    fetch('/api/words/queues', { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error('API error')
+        return r.json()
+      })
       .then((d) => {
-        if (ignore) return
         cachedQueues = d
         setData(d)
         setLoading(false)
       })
-      .catch(() => { if (!ignore) setLoading(false) })
-    return () => { ignore = true }
+      .catch(() => {
+        setData(DEFAULT_QUEUES)
+        setLoading(false)
+        setError(true)
+      })
+      .finally(() => clearTimeout(timer))
   }, [])
+
+  useEffect(() => {
+    fetchQueues()
+  }, [fetchQueues])
 
   const saveDailyTarget = useCallback((val: number) => {
     const clamped = Math.min(Math.max(val, 1), 100)
@@ -92,8 +106,29 @@ export default function DailyDashboard() {
             </div>
           </div>
 
+          {/* Error state */}
+          {error && (
+            <div className="text-center mb-10">
+              <div className="inline-flex items-center justify-center rounded-2xl w-16 h-16 mb-4" style={{ backgroundColor: '#FCEAEB' }}>
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="#DC2626" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium mb-4" style={{ color: '#666666' }}>Could not load study data. Check your connection.</p>
+              <button onClick={fetchQueues}
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-all hover:scale-105 active:scale-[0.97]"
+                style={{ backgroundColor: '#5A7A9A' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M2.985 19.644l7.404-7.404" />
+                </svg>
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Two-column cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {!error && <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Learn card */}
             <div className="rounded-3xl border p-8 md:p-10 text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 20px -4px rgba(0,0,0,0.06)' }}
@@ -151,10 +186,10 @@ export default function DailyDashboard() {
                 {canReview ? 'Start Review' : 'All reviewed'}
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Mastered count + link */}
-          {cachedQueues && (
+          {!error && cachedQueues && (
             <div className="mt-8 flex flex-col items-center gap-4">
               <p className="text-xs" style={{ color: '#BBBBBB' }}>
                 <span className="tabular-nums">{data.masteredCount}</span> mastered · <span className="tabular-nums">{data.totalWords}</span> total words

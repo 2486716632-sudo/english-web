@@ -14,19 +14,23 @@ export async function POST(request: NextRequest) {
   let wordData: Record<string, unknown> | null = null
 
   if (firstWord.length > 0) {
-    const found = await prisma.word.findFirst({
-      where: { word: firstWord.toLowerCase() },
-    })
-    if (found) {
-      wordData = {
-        word: found.word,
-        phonetic: found.phonetic,
-        partOfSpeech: found.partOfSpeech,
-        definition: found.definition,
-        collocations: found.collocations,
-        example: found.example,
-        exampleZh: found.exampleZh,
+    try {
+      const found = await prisma.word.findFirst({
+        where: { word: firstWord.toLowerCase() },
+      })
+      if (found) {
+        wordData = {
+          word: found.word,
+          phonetic: found.phonetic,
+          partOfSpeech: found.partOfSpeech,
+          definition: found.definition,
+          collocations: found.collocations,
+          example: found.example,
+          exampleZh: found.exampleZh,
+        }
       }
+    } catch {
+      // DB unavailable — reply without word card
     }
   }
 
@@ -40,6 +44,7 @@ export async function POST(request: NextRequest) {
    - Include common collocations with Chinese translations
    - Provide 1-2 example sentences (EN + ZH)
    - Keep it structured and scannable
+   - ⚠️ Phonetic note: Many English words have DIFFERENT pronunciations depending on part of speech (e.g. noun "record" /ˈrekɔːd/ vs verb "record" /rɪˈkɔːd/; noun "present" /ˈpreznt/ vs verb "present" /prɪˈzent/). The database phonetic may only show one form — check your knowledge and list both with their POS labels if applicable.
 
 ### 2. "How do I say X in English" / translation requests
    - Give the most natural English equivalent, not literal translation
@@ -68,7 +73,8 @@ export async function POST(request: NextRequest) {
     if (wordData.collocations) systemContent += `Collocations: ${wordData.collocations}\n`
     if (wordData.example) systemContent += `Example: ${wordData.example}\n`
     if (wordData.exampleZh) systemContent += `Example ZH: ${wordData.exampleZh}\n`
-    systemContent += `\nPresent this information clearly. If the example contains " ||| " separators, treat each segment as a separate sentence.`
+    systemContent += `\nPresent this information clearly. If the example contains " ||| " separators, treat each segment as a separate sentence.\n`
+    systemContent += `IMPORTANT: The database phonetic above may only cover one form. If this word has different pronunciations for different parts of speech (e.g. noun vs verb), explicitly list them in your response and note which POS each pronunciation belongs to.`
   }
 
   // Call DeepSeek

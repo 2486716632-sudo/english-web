@@ -237,7 +237,11 @@ export default function StudyPage() {
       setMastered(prev => new Set([...prev, id]))
       submitRating(id, 'mastered')
       submittingRef.current = false
-      advance()
+      setFlipped(false)
+      // R1 queue is the full `words` array (unfiltered by mastered), so we need
+      // to advance manually. R2/R3 filter out mastered words, so the mastered
+      // word is auto-removed and idx naturally shifts to the next word.
+      if (round === 1) advance()
       return
     }
 
@@ -326,7 +330,21 @@ export default function StudyPage() {
         </button>
 
         <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 flex-shrink-0" style={{ color: '#2F2F2F' }}>{currentWord.word}</h2>
-        {currentWord.phonetic && <p className="mb-7 text-sm md:text-base flex-shrink-0" style={{ color: '#888888' }}>{formatPhonetic(currentWord.phonetic)}</p>}
+        <div className="flex items-center gap-2 mb-7 flex-shrink-0">
+          {currentWord.phonetic && <p className="text-sm md:text-base" style={{ color: '#888888' }}>{formatPhonetic(currentWord.phonetic)}</p>}
+          <button onClick={() => {
+            const u = new SpeechSynthesisUtterance(currentWord.word)
+            u.lang = 'en-US'
+            u.rate = 0.85
+            speechSynthesis.speak(u)
+          }} className="inline-flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200 hover:scale-110 active:scale-90"
+            style={{ backgroundColor: '#F0F0F0', color: '#666666' }}
+            title="Play pronunciation">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+            </svg>
+          </button>
+        </div>
 
         {/* Scrollable content area */}
         <div className="overflow-y-auto min-h-0" style={{ flex: '0 1 auto' }}>
@@ -425,7 +443,7 @@ export default function StudyPage() {
     return (
       <>
         <div className="w-full flex flex-col items-center justify-center select-none"
-          style={{ minHeight: 'min(60vh, 560px)' }}
+          style={{ minHeight: 'min(60vh, 560px)', paddingBottom: 'min(6vh, 50px)' }}
         >
           {currentWord.partOfSpeech && (
             <span className="mb-6 md:mb-8 rounded-full px-4 py-1.5 text-sm md:text-base font-semibold uppercase tracking-wide"
