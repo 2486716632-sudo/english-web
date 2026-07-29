@@ -184,6 +184,7 @@ function SectionRow({ articles, showZh, onToggleZh }: {
                     src={a.imageUrl}
                     alt=""
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.style.background = visual.gradient }}
                   />
                 ) : (
                   <div className="h-full w-full" style={{ background: visual.gradient }} />

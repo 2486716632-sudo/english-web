@@ -290,10 +290,21 @@ export default function AIAssistant() {
                     borderColor: 'rgba(0,0,0,0.05)',
                   }}
                 >
-                  <div className="flex items-baseline gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-base font-bold" style={{ color: '#2F2F2F' }}>{wordData.word}</span>
                     {wordData.phonetic && <span className="text-xs" style={{ color: '#888888' }}>/{wordData.phonetic.replace(/^\/|\/$/g, '')}/</span>}
                     <span className="text-xs" style={{ color: '#AAAAAA' }}>{wordData.partOfSpeech}</span>
+                    <button onClick={() => {
+                      const u = new SpeechSynthesisUtterance(wordData.word)
+                      u.lang = 'en-US'; u.rate = 0.85
+                      speechSynthesis.speak(u)
+                    }} className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-all duration-200 hover:scale-110 active:scale-90 ml-auto"
+                      style={{ backgroundColor: '#FFFFFF', color: '#888888' }}
+                      title="Play pronunciation">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                      </svg>
+                    </button>
                   </div>
                   <p className="text-sm mb-2.5 leading-relaxed" style={{ color: '#555555' }}>{wordData.definition}</p>
                   {wordData.collocations && (

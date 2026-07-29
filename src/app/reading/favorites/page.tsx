@@ -182,7 +182,8 @@ export default function ReadingFavoritesPage() {
                   <Link href={`/reading/${a.id}`} onClick={() => { _favScroll = window.scrollY }} className="flex items-center gap-5 flex-1 min-w-0">
                     <div className="relative shrink-0 w-24 h-16 md:w-32 md:h-20 rounded-xl overflow-hidden">
                       {a.imageUrl ? (
-                        <img src={a.imageUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={a.imageUrl} alt="" className="h-full w-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.style.background = visual.gradient }} />
                       ) : (
                         <div className="h-full w-full" style={{ background: visual.gradient }} />
                       )}

@@ -27,6 +27,13 @@ function saveProgress(theme: string, map: ProgressMap) {
   localStorage.setItem(`wordpack_${theme}`, JSON.stringify(map))
 }
 
+function speakWord(word: string) {
+  const u = new SpeechSynthesisUtterance(word)
+  u.lang = 'en-US'
+  u.rate = 0.85
+  speechSynthesis.speak(u)
+}
+
 function highlightWord(example: string, word: string): React.ReactNode[] {
   const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const parts = example.split(new RegExp(`\\b(${escaped}\\w*)\\b`, 'gi'))
@@ -266,7 +273,17 @@ function ThemeStudyInner({ theme }: { theme: string }) {
       style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.06)', boxShadow: '0 2px 20px -4px rgba(0,0,0,0.06)', minHeight: 'min(60vh, 560px)' }}
     >
       <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2" style={{ color: '#2F2F2F' }}>{current.word}</h2>
-      {current.phonetic && <p className="mb-7 text-sm md:text-base" style={{ color: '#888888' }}>{formatPhonetic(current.phonetic)}</p>}
+      <div className="flex items-center gap-2 mb-7">
+        {current.phonetic && <p className="text-sm md:text-base" style={{ color: '#888888' }}>{formatPhonetic(current.phonetic)}</p>}
+        <button onClick={() => speakWord(current.word)}
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full transition-all duration-200 hover:scale-110 active:scale-90"
+          style={{ backgroundColor: '#F0F0F0', color: '#666666' }}
+          title="Play pronunciation">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+          </svg>
+        </button>
+      </div>
 
       {current.definition && (
         <section className="mb-7">

@@ -247,6 +247,7 @@ export default function ReadingDetailPage({ params }: { params: Promise<{ id: st
                 src={article.imageUrl}
                 alt=""
                 className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.style.background = visual.gradient }}
               />
             ) : (
               <div className="h-full w-full" style={{ background: visual.gradient }} />
