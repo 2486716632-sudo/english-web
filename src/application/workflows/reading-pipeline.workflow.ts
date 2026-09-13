@@ -3,13 +3,17 @@
 // @layer Application — Workflow（确定性多步编排）
 
 import { ApplicationError } from '@/application/errors'
-import type { AICallMeta, AIClientPort } from '@/application/ports/ai-client'
+import { AIError, type AICallMeta, type AIClientPort } from '@/application/ports/ai-client'
 import type { ArticleExtractorPort } from '@/application/ports/article-extractor'
 import type { FeedEntry, FeedSourcePort } from '@/application/ports/feed-source'
+import type { TraceScope } from '@/application/ports/trace'
 import type {
   NewReadingArticle,
   ReadingArticleRepositoryPort,
 } from '@/application/ports/reading-article-repository'
+import { resolveTraceScope, type ExecutionContext } from '@/application/observability/execution-context'
+import { runInSpan } from '@/application/observability/trace-helpers'
+import { withAITracing } from '@/application/observability/traced-ai-client'
 import {
   buildProcessArticlePrompt,
   articleProcessingPayloadSchema,
@@ -37,6 +41,12 @@ import type { ArticleProcessingResult } from '@/domain/reading/types'
  *   step 2 selectNewArticles  — 与数据库去重、洗牌后取前 N 条
  *   step 3 processArticles    — 逐条：抽取 → 长度校验 → AI 结构化输出 → 持久化（每条独立容错）
  *   step 4 trimToLimit        — 超出上限时删除最旧文章
+ *
+ * Phase 5 在同一批**真实**步骤边界上挂 trace（不发明新步骤）：
+ *  - 一次 `run()` = 一个 trace 下的 `reading.pipeline` workflow span
+ *  - 4 个步骤各有一个 `workflow_step` span；per-feed / per-article 操作是它们的子 span
+ *  - `onEvent` 操作员事件流**未改动**（保持 Phase 4 已批准的日志行为）；
+ *    结构化的 trace 事件记录在 span 上（`recordEvent`），两者互不影响
  */
 
 // ---------------------------------------------------------------
@@ -184,7 +194,14 @@ interface ArticleCandidate {
  */
 type SummarizeOutcome =
   | { status: 'ok'; result: ArticleProcessingResult; meta: AICallMeta }
-  | { status: 'degraded'; result: ArticleProcessingResult; errorMessage: string }
+  | {
+      status: 'degraded'
+      result: ArticleProcessingResult
+      errorMessage: string
+      /** 归一化 AI 错误码（`AIError.code`），可用时记录到 trace。 */
+      errorCode?: string
+      errorName?: string
+    }
   | { status: 'failed'; errorMessage: string }
 
 const EMPTY_AI_RESULT: ArticleProcessingResult = { titleZh: '', summaryZh: '', vocabItems: [] }
@@ -206,89 +223,167 @@ export class ReadingPipelineWorkflow {
     this.random = options.random ?? Math.random
   }
 
-  /** 执行完整管线：收集 → 选取 → 逐条处理 → 裁剪。 */
-  async run(config: ReadingPipelineConfig): Promise<ReadingPipelineResult> {
-    const candidates = await this.collectCandidates(config.feeds)
+  /**
+   * 执行完整管线：收集 → 选取 → 逐条处理 → 裁剪。
+   *
+   * `context.trace` 由交付层（CLI）创建并显式传入；缺省时使用 Null Object，
+   * 业务行为完全不变（trace 是纯增量）。
+   */
+  async run(
+    config: ReadingPipelineConfig,
+    context: ExecutionContext = {},
+  ): Promise<ReadingPipelineResult> {
+    const trace = resolveTraceScope(context)
 
-    if (candidates.length === 0) {
-      this.onEvent({ type: 'run:earlyExit', reason: 'no_candidates', candidateCount: 0 })
-      return this.emptyResult('no_candidates')
-    }
+    return runInSpan(
+      trace,
+      'reading.pipeline',
+      {
+        category: 'workflow',
+        metadata: {
+          'reading.maxPerRun': config.maxPerRun,
+          'reading.maxArticles': config.maxArticles,
+          'reading.feedCount': config.feeds.length,
+        },
+      },
+      async (workflowSpan) => {
+        const candidates = await this.collectCandidates(config.feeds, workflowSpan)
 
-    const { selected, newCandidateCount } = await this.selectNewArticles(candidates, config.maxPerRun)
+        if (candidates.length === 0) {
+          workflowSpan.recordEvent('run.early_exit', { metadata: { reason: 'no_candidates' } })
+          workflowSpan.addMetadata({ 'reading.candidateCount': 0 })
+          this.onEvent({ type: 'run:earlyExit', reason: 'no_candidates', candidateCount: 0 })
+          return this.emptyResult('no_candidates')
+        }
 
-    if (newCandidateCount === 0) {
-      this.onEvent({
-        type: 'run:earlyExit',
-        reason: 'no_new_articles',
-        candidateCount: candidates.length,
-      })
-      return this.emptyResult('no_new_articles', candidates.length)
-    }
+        const { selected, newCandidateCount } = await this.selectNewArticles(
+          candidates,
+          config.maxPerRun,
+          workflowSpan,
+        )
 
-    const processed = await this.processArticles(selected, config)
-    const trim = await this.trimToLimit(config.maxArticles)
-    // 与迁移前一致：裁剪后再取一次总数（既有实现同样在结尾再 count 一次）。
-    const totalArticles = await this.withPersistence(() => this.deps.repository.countArticles())
+        if (newCandidateCount === 0) {
+          workflowSpan.recordEvent('run.early_exit', {
+            metadata: { reason: 'no_new_articles', candidateCount: candidates.length },
+          })
+          workflowSpan.addMetadata({
+            'reading.candidateCount': candidates.length,
+            'reading.newCandidateCount': 0,
+          })
+          this.onEvent({
+            type: 'run:earlyExit',
+            reason: 'no_new_articles',
+            candidateCount: candidates.length,
+          })
+          return this.emptyResult('no_new_articles', candidates.length)
+        }
 
-    return {
-      earlyExit: null,
-      pushed: processed.pushed,
-      skipped: processed.skipped,
-      failed: processed.failed,
-      degraded: processed.degraded,
-      deleted: trim.deleted,
-      totalArticles,
-      candidateCount: candidates.length,
-      newCandidateCount,
-      selectedCount: selected.length,
-      articles: processed.articles,
-    }
+        const processed = await this.processArticles(selected, config, workflowSpan)
+        const trim = await this.trimToLimit(config.maxArticles, workflowSpan)
+        // 与迁移前一致：裁剪后再取一次总数（既有实现同样在结尾再 count 一次）。
+        const totalArticles = await this.withPersistence(() => this.deps.repository.countArticles())
+
+        // 单篇失败 / AI 降级**不**判定为整轮失败：整轮仍在完成，
+        // 但状态为 `degraded`，与"完全成功"区分开（Phase 5 任务文档 Part 8）。
+        const outcome =
+          processed.failed > 0 || processed.degraded > 0
+            ? ('degraded' as const)
+            : ('ok' as const)
+
+        workflowSpan.addMetadata({
+          'reading.candidateCount': candidates.length,
+          'reading.newCandidateCount': newCandidateCount,
+          'reading.selectedCount': selected.length,
+          'reading.pushed': processed.pushed,
+          'reading.skipped': processed.skipped,
+          'reading.failed': processed.failed,
+          'reading.degraded': processed.degraded,
+          'reading.deleted': trim.deleted,
+          'reading.totalArticles': totalArticles,
+          'reading.outcome': outcome,
+        })
+        workflowSpan.end(outcome)
+
+        return {
+          earlyExit: null,
+          pushed: processed.pushed,
+          skipped: processed.skipped,
+          failed: processed.failed,
+          degraded: processed.degraded,
+          deleted: trim.deleted,
+          totalArticles,
+          candidateCount: candidates.length,
+          newCandidateCount,
+          selectedCount: selected.length,
+          articles: processed.articles,
+        }
+      },
+    )
   }
 
   // -------------------------------------------------------------
   // step 1：读取 feeds，按 link 跨 feed 去重并合并 tag
   // -------------------------------------------------------------
-  private async collectCandidates(feeds: ReadingFeedDefinition[]): Promise<ArticleCandidate[]> {
-    const byLink = new Map<string, ArticleCandidate>()
+  private async collectCandidates(
+    feeds: ReadingFeedDefinition[],
+    parent: TraceScope,
+  ): Promise<ArticleCandidate[]> {
+    return runInSpan(
+      parent,
+      'reading.collect_candidates',
+      { category: 'workflow_step', metadata: { 'reading.feedCount': feeds.length } },
+      async (stepSpan) => {
+        const byLink = new Map<string, ArticleCandidate>()
 
-    for (const feed of feeds) {
-      this.onEvent({ type: 'feed:start', feedUrl: feed.url })
-      let entries: FeedEntry[]
-      try {
-        entries = await this.deps.feedSource.fetchFeed(feed.url)
-      } catch (error) {
-        // 内容源不可用 → 整轮中止（保持迁移前"feed 失败即致命"的行为），
-        // 并归一化为应用级错误码；原始文案保留在 message 中。
-        throw new ApplicationError(
-          'feed_unavailable',
-          error instanceof Error ? error.message : String(error),
-          { cause: error },
-        )
-      }
-      this.onEvent({
-        type: 'feed:loaded',
-        feedUrl: feed.url,
-        tag: feed.tag,
-        itemCount: entries.length,
-      })
+        for (const feed of feeds) {
+          this.onEvent({ type: 'feed:start', feedUrl: feed.url })
+          let entries: FeedEntry[]
+          try {
+            entries = await runInSpan(
+              stepSpan,
+              'reading.feed_fetch',
+              { category: 'external_io', metadata: { 'feed.tag': feed.tag } },
+              async (feedSpan) => {
+                const result = await this.deps.feedSource.fetchFeed(feed.url)
+                feedSpan.addMetadata({ 'feed.itemCount': result.length })
+                return result
+              },
+            )
+          } catch (error) {
+            // 内容源不可用 → 整轮中止（保持迁移前"feed 失败即致命"的行为），
+            // 并归一化为应用级错误码；原始文案保留在 message 中。
+            throw new ApplicationError(
+              'feed_unavailable',
+              error instanceof Error ? error.message : String(error),
+              { cause: error },
+            )
+          }
+          this.onEvent({
+            type: 'feed:loaded',
+            feedUrl: feed.url,
+            tag: feed.tag,
+            itemCount: entries.length,
+          })
 
-      for (const entry of entries) {
-        const link = entry.link || ''
-        if (!link) continue
+          for (const entry of entries) {
+            const link = entry.link || ''
+            if (!link) continue
 
-        const existing = byLink.get(link)
-        if (existing) {
-          if (!existing.tags.includes(feed.tag)) existing.tags.push(feed.tag)
-        } else {
-          byLink.set(link, { entry, tags: [feed.tag] })
+            const existing = byLink.get(link)
+            if (existing) {
+              if (!existing.tags.includes(feed.tag)) existing.tags.push(feed.tag)
+            } else {
+              byLink.set(link, { entry, tags: [feed.tag] })
+            }
+          }
         }
-      }
-    }
 
-    const candidates = [...byLink.values()]
-    this.onEvent({ type: 'candidates:collected', count: candidates.length })
-    return candidates
+        const candidates = [...byLink.values()]
+        stepSpan.addMetadata({ 'reading.candidateCount': candidates.length })
+        this.onEvent({ type: 'candidates:collected', count: candidates.length })
+        return candidates
+      },
+    )
   }
 
   // -------------------------------------------------------------
@@ -297,36 +392,59 @@ export class ReadingPipelineWorkflow {
   private async selectNewArticles(
     candidates: ArticleCandidate[],
     maxPerRun: number,
+    parent: TraceScope,
   ): Promise<{ selected: ArticleCandidate[]; newCandidateCount: number }> {
-    this.shuffle(candidates)
+    return runInSpan(
+      parent,
+      'reading.select_new_articles',
+      { category: 'workflow_step', metadata: { 'reading.candidateCount': candidates.length } },
+      async (stepSpan) => {
+        this.shuffle(candidates)
 
-    const existingUrls = new Set(
-      await this.withPersistence(() => this.deps.repository.listExistingUrls()),
+        // 去重所需的两次只读查询（既有顺序：先 url 后 title）。
+        const existing = await runInSpan(
+          stepSpan,
+          'reading.load_existing_index',
+          { category: 'persistence' },
+          async (indexSpan) => {
+            const urls = await this.withPersistence(() => this.deps.repository.listExistingUrls())
+            const titles = await this.withPersistence(() => this.deps.repository.listExistingTitles())
+            indexSpan.addMetadata({
+              'reading.existingUrlCount': urls.length,
+              'reading.existingTitleCount': titles.length,
+            })
+            return { urls, titles }
+          },
+        )
+
+        const existingUrls = new Set(existing.urls)
+        const existingTitles = new Set(existing.titles.map((title) => title.toLowerCase().trim()))
+
+        // 与既有实现一致：候选链接先小写化再与数据库原始 url 比较（保留该不对称行为）。
+        const newCandidates = candidates.filter((candidate) => {
+          const link = candidate.entry.link?.toLowerCase().trim() || ''
+          if (existingUrls.has(link)) return false
+          const title = candidate.entry.title?.toLowerCase().trim() || ''
+          if (existingTitles.has(title)) return false
+          return true
+        })
+
+        const selected = newCandidates.slice(0, maxPerRun)
+        stepSpan.addMetadata({
+          'reading.newCandidateCount': newCandidates.length,
+          'reading.existingCount': candidates.length - newCandidates.length,
+          'reading.selectedCount': selected.length,
+        })
+        this.onEvent({
+          type: 'candidates:selected',
+          selected: selected.length,
+          newCount: newCandidates.length,
+          existingCount: candidates.length - newCandidates.length,
+        })
+
+        return { selected, newCandidateCount: newCandidates.length }
+      },
     )
-    const existingTitles = new Set(
-      (await this.withPersistence(() => this.deps.repository.listExistingTitles())).map((title) =>
-        title.toLowerCase().trim(),
-      ),
-    )
-
-    // 与既有实现一致：候选链接先小写化再与数据库原始 url 比较（保留该不对称行为）。
-    const newCandidates = candidates.filter((candidate) => {
-      const link = candidate.entry.link?.toLowerCase().trim() || ''
-      if (existingUrls.has(link)) return false
-      const title = candidate.entry.title?.toLowerCase().trim() || ''
-      if (existingTitles.has(title)) return false
-      return true
-    })
-
-    const selected = newCandidates.slice(0, maxPerRun)
-    this.onEvent({
-      type: 'candidates:selected',
-      selected: selected.length,
-      newCount: newCandidates.length,
-      existingCount: candidates.length - newCandidates.length,
-    })
-
-    return { selected, newCandidateCount: newCandidates.length }
   }
 
   // -------------------------------------------------------------
@@ -335,6 +453,7 @@ export class ReadingPipelineWorkflow {
   private async processArticles(
     selected: ArticleCandidate[],
     config: ReadingPipelineConfig,
+    parent: TraceScope,
   ): Promise<{
     pushed: number
     skipped: number
@@ -347,153 +466,245 @@ export class ReadingPipelineWorkflow {
     const interArticleDelayMs = config.interArticleDelayMs ?? DEFAULT_INTER_ARTICLE_DELAY_MS
     const source = config.source ?? PIPELINE_SOURCE
 
-    let pushed = 0
-    let skipped = 0
-    let failed = 0
-    let degraded = 0
-    const articles: Array<{ id: number; title: string; url: string }> = []
+    return runInSpan(
+      parent,
+      'reading.process_articles',
+      { category: 'workflow_step', metadata: { 'reading.selectedCount': selected.length } },
+      async (stepSpan) => {
+        let pushed = 0
+        let skipped = 0
+        let failed = 0
+        let degraded = 0
+        const articles: Array<{ id: number; title: string; url: string }> = []
 
-    for (let index = 0; index < selected.length; index += 1) {
-      const { entry, tags } = selected[index]
-      const title = entry.title || 'Untitled'
-      const link = entry.link || ''
-      const publishedAt = entry.pubDate ? new Date(entry.pubDate) : null
-      const position = index + 1
+        for (let index = 0; index < selected.length; index += 1) {
+          const { entry, tags } = selected[index]
+          const title = entry.title || 'Untitled'
+          const link = entry.link || ''
+          const publishedAt = entry.pubDate ? new Date(entry.pubDate) : null
+          const position = index + 1
 
-      this.onEvent({ type: 'article:start', index: position, total: selected.length, title })
+          this.onEvent({ type: 'article:start', index: position, total: selected.length, title })
 
-      try {
-        // --- 抽取 ---
-        const extracted = await this.deps.extractor.extract({
-          url: link,
-          html: entry.content || undefined,
-        })
-        const contentText = extracted.textContent
+          try {
+            // 单篇的完整操作在自己的 span 下：父 span 可关联到本轮运行，
+            // 且单篇失败只把**该 span** 标记为失败，不改变整轮控制流。
+            await runInSpan(
+              stepSpan,
+              'reading.process_article',
+              {
+                category: 'workflow_step',
+                metadata: { 'article.index': position, 'article.total': selected.length },
+              },
+              async (articleSpan) => {
+                // --- 抽取 ---
+                const extracted = await runInSpan(
+                  articleSpan,
+                  'reading.extract_article',
+                  { category: 'external_io', metadata: { 'article.index': position } },
+                  async (extractSpan) => {
+                    const result = await this.deps.extractor.extract({
+                      url: link,
+                      html: entry.content || undefined,
+                    })
+                    extractSpan.addMetadata({
+                      'article.contentLength': result.textContent.length,
+                      'article.hasImage': Boolean(result.imageUrl),
+                    })
+                    return result
+                  },
+                )
+                const contentText = extracted.textContent
 
-        if (!hasSufficientContent(contentText, minContentChars)) {
-          skipped += 1
-          this.onEvent({
-            type: 'article:skipped',
-            index: position,
-            total: selected.length,
-            title,
-            contentLength: contentText.length,
-          })
-          continue
+                if (!hasSufficientContent(contentText, minContentChars)) {
+                  skipped += 1
+                  articleSpan.addMetadata({
+                    outcome: 'skipped',
+                    'article.contentLength': contentText.length,
+                  })
+                  articleSpan.recordEvent('article.skipped', {
+                    metadata: {
+                      'article.index': position,
+                      'article.contentLength': contentText.length,
+                    },
+                  })
+                  this.onEvent({
+                    type: 'article:skipped',
+                    index: position,
+                    total: selected.length,
+                    title,
+                    contentLength: contentText.length,
+                  })
+                  return
+                }
+
+                this.onEvent({
+                  type: 'article:extracted',
+                  index: position,
+                  total: selected.length,
+                  title,
+                  contentLength: contentText.length,
+                  hasImage: Boolean(extracted.imageUrl),
+                })
+
+                // --- AI（请求失败降级；负载不可安全恢复则视为该条失败） ---
+                const outcome = await this.summarizeArticle(
+                  title,
+                  contentText,
+                  maxVocabItems,
+                  articleSpan,
+                  position,
+                )
+
+                if (outcome.status === 'failed') {
+                  // 迁移前：这类负载会在写库阶段抛错 → 该条计失败、不入库。
+                  // 这里用同样的 message 抛出，由外层 catch 记账（控制流与文案保持一致）。
+                  articleSpan.addMetadata({ outcome: 'failed' })
+                  throw new Error(outcome.errorMessage)
+                }
+
+                if (outcome.status === 'degraded') {
+                  degraded += 1
+                  articleSpan.recordEvent('article.degraded', {
+                    metadata: {
+                      'article.index': position,
+                      'ai.errorCode': outcome.errorCode,
+                      'ai.errorName': outcome.errorName,
+                    },
+                  })
+                }
+
+                this.onEvent({
+                  type: 'article:ai',
+                  index: position,
+                  total: selected.length,
+                  title,
+                  degraded: outcome.status === 'degraded',
+                  titleZh: outcome.result.titleZh,
+                  vocabCount: outcome.result.vocabItems.length,
+                  errorMessage: outcome.status === 'degraded' ? outcome.errorMessage : undefined,
+                  meta: outcome.status === 'ok' ? outcome.meta : undefined,
+                })
+
+                // --- 持久化 ---
+                const excerpt = buildExcerpt(contentText)
+                const difficulty = difficultyFromContentLength(contentText.length)
+
+                const article = await runInSpan(
+                  articleSpan,
+                  'reading.persist_article',
+                  {
+                    category: 'persistence',
+                    metadata: {
+                      'article.index': position,
+                      'article.difficulty': difficulty,
+                      'article.vocabCount': outcome.result.vocabItems.length,
+                    },
+                  },
+                  () =>
+                    this.deps.repository.createArticle({
+                      title,
+                      titleZh: outcome.result.titleZh || null,
+                      url: link,
+                      imageUrl: extracted.imageUrl || null,
+                      publishedAt,
+                      source: source.name,
+                      sourceEmoji: source.emoji,
+                      content: contentText,
+                      summary: outcome.result.summaryZh || excerpt,
+                      summaryEn: excerpt,
+                      difficulty,
+                      tags: tags.join(','),
+                      vocabItems: outcome.result.vocabItems.map((item) => ({
+                        word: item.word,
+                        type: item.type || 'word',
+                        partOfSpeech: item.partOfSpeech || null,
+                        phonetic: null,
+                        definition: item.definition,
+                        contextSentence: item.contextSentence,
+                      })),
+                    } satisfies NewReadingArticle),
+                )
+
+                pushed += 1
+                articles.push({ id: article.id, title, url: link })
+                articleSpan.addMetadata({
+                  outcome: outcome.status === 'degraded' ? 'degraded' : 'persisted',
+                  'article.id': article.id,
+                })
+
+                this.onEvent({
+                  type: 'article:persisted',
+                  index: position,
+                  total: selected.length,
+                  title,
+                  articleId: article.id,
+                  tags: tags.join(', '),
+                  difficulty,
+                })
+
+                // 限速：与既有实现一致，仅在成功入库后等待
+                await this.sleep(interArticleDelayMs)
+
+                // AI 降级但文章仍然入库：该次运行不是"完全成功"，标记为 degraded。
+                if (outcome.status === 'degraded') articleSpan.end('degraded')
+              },
+            )
+          } catch (error) {
+            failed += 1
+            this.onEvent({
+              type: 'article:failed',
+              index: position,
+              total: selected.length,
+              title,
+              message: error instanceof Error ? error.message : String(error),
+            })
+          }
         }
 
-        this.onEvent({
-          type: 'article:extracted',
-          index: position,
-          total: selected.length,
-          title,
-          contentLength: contentText.length,
-          hasImage: Boolean(extracted.imageUrl),
+        stepSpan.addMetadata({
+          'reading.pushed': pushed,
+          'reading.skipped': skipped,
+          'reading.failed': failed,
+          'reading.degraded': degraded,
         })
 
-        // --- AI（请求失败降级；负载不可安全恢复则视为该条失败） ---
-        const outcome = await this.summarizeArticle(title, contentText, maxVocabItems)
-
-        if (outcome.status === 'failed') {
-          // 迁移前：这类负载会在写库阶段抛错 → 该条计失败、不入库
-          failed += 1
-          this.onEvent({
-            type: 'article:failed',
-            index: position,
-            total: selected.length,
-            title,
-            message: outcome.errorMessage,
-          })
-          continue
-        }
-
-        if (outcome.status === 'degraded') degraded += 1
-
-        this.onEvent({
-          type: 'article:ai',
-          index: position,
-          total: selected.length,
-          title,
-          degraded: outcome.status === 'degraded',
-          titleZh: outcome.result.titleZh,
-          vocabCount: outcome.result.vocabItems.length,
-          errorMessage: outcome.status === 'degraded' ? outcome.errorMessage : undefined,
-          meta: outcome.status === 'ok' ? outcome.meta : undefined,
-        })
-
-        // --- 持久化 ---
-        const excerpt = buildExcerpt(contentText)
-        const difficulty = difficultyFromContentLength(contentText.length)
-
-        const article = await this.deps.repository.createArticle({
-          title,
-          titleZh: outcome.result.titleZh || null,
-          url: link,
-          imageUrl: extracted.imageUrl || null,
-          publishedAt,
-          source: source.name,
-          sourceEmoji: source.emoji,
-          content: contentText,
-          summary: outcome.result.summaryZh || excerpt,
-          summaryEn: excerpt,
-          difficulty,
-          tags: tags.join(','),
-          vocabItems: outcome.result.vocabItems.map((item) => ({
-            word: item.word,
-            type: item.type || 'word',
-            partOfSpeech: item.partOfSpeech || null,
-            phonetic: null,
-            definition: item.definition,
-            contextSentence: item.contextSentence,
-          })),
-        } satisfies NewReadingArticle)
-
-        pushed += 1
-        articles.push({ id: article.id, title, url: link })
-
-        this.onEvent({
-          type: 'article:persisted',
-          index: position,
-          total: selected.length,
-          title,
-          articleId: article.id,
-          tags: tags.join(', '),
-          difficulty,
-        })
-
-        // 限速：与既有实现一致，仅在成功入库后等待
-        await this.sleep(interArticleDelayMs)
-      } catch (error) {
-        failed += 1
-        this.onEvent({
-          type: 'article:failed',
-          index: position,
-          total: selected.length,
-          title,
-          message: error instanceof Error ? error.message : String(error),
-        })
-      }
-    }
-
-    return { pushed, skipped, failed, degraded, articles }
+        return { pushed, skipped, failed, degraded, articles }
+      },
+    )
   }
 
   // -------------------------------------------------------------
   // step 4：裁剪到文章总数上限
   // -------------------------------------------------------------
-  private async trimToLimit(maxArticles: number): Promise<{ beforeCount: number; deleted: number }> {
-    const beforeCount = await this.withPersistence(() => this.deps.repository.countArticles())
-    this.onEvent({ type: 'trim:checked', total: beforeCount, limit: maxArticles })
+  private async trimToLimit(
+    maxArticles: number,
+    parent: TraceScope,
+  ): Promise<{ beforeCount: number; deleted: number }> {
+    return runInSpan(
+      parent,
+      'reading.trim_to_limit',
+      { category: 'workflow_step', metadata: { 'reading.maxArticles': maxArticles } },
+      async (stepSpan) => {
+        const beforeCount = await this.withPersistence(() => this.deps.repository.countArticles())
+        stepSpan.addMetadata({ 'reading.trim.beforeCount': beforeCount })
+        this.onEvent({ type: 'trim:checked', total: beforeCount, limit: maxArticles })
 
-    if (beforeCount <= maxArticles) return { beforeCount, deleted: 0 }
+        if (beforeCount <= maxArticles) {
+          stepSpan.addMetadata({ 'reading.trim.deleted': 0 })
+          return { beforeCount, deleted: 0 }
+        }
 
-    const ids = await this.withPersistence(() =>
-      this.deps.repository.findOldestArticleIds(beforeCount - maxArticles),
+        const ids = await this.withPersistence(() =>
+          this.deps.repository.findOldestArticleIds(beforeCount - maxArticles),
+        )
+        await this.withPersistence(() => this.deps.repository.deleteArticlesWithVocab(ids))
+        stepSpan.addMetadata({ 'reading.trim.deleted': ids.length })
+        this.onEvent({ type: 'trim:deleted', count: ids.length })
+
+        return { beforeCount, deleted: ids.length }
+      },
     )
-    await this.withPersistence(() => this.deps.repository.deleteArticlesWithVocab(ids))
-    this.onEvent({ type: 'trim:deleted', count: ids.length })
-
-    return { beforeCount, deleted: ids.length }
   }
 
   // -------------------------------------------------------------
@@ -503,13 +714,18 @@ export class ReadingPipelineWorkflow {
     title: string,
     content: string,
     maxVocabItems: number,
+    parent: TraceScope,
+    position: number,
   ): Promise<SummarizeOutcome> {
+    // AI 调用经装饰器：provider / model / latency / attempts / usage / 错误码写入 `ai.chat_structured` span，
+    // 且 prompt 与模型输出**不进入** trace（metadata-first）。
+    const aiClient = withAITracing(this.deps.aiClient, parent)
     let payload: unknown
     let meta: AICallMeta
 
     try {
       const prompt = buildProcessArticlePrompt({ title, content })
-      const response = await this.deps.aiClient.chatStructured(
+      const response = await aiClient.chatStructured(
         {
           messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
           temperature: READING_AI_TEMPERATURE,
@@ -533,11 +749,33 @@ export class ReadingPipelineWorkflow {
         status: 'degraded',
         result: EMPTY_AI_RESULT,
         errorMessage: error instanceof Error ? error.message : String(error),
+        errorCode: error instanceof AIError ? error.code : undefined,
+        errorName: error instanceof Error ? error.name : undefined,
       }
     }
 
     // 归一化（迁移前的字段级兜底）。无法安全恢复的负载 → 该条失败，不静默降级。
-    const normalized = normalizeArticleProcessingPayload(payload)
+    const normalized = await runInSpan(
+      parent,
+      'reading.normalize_payload',
+      { category: 'validation', metadata: { 'article.index': position } },
+      async (validationSpan) => {
+        const result = normalizeArticleProcessingPayload(payload)
+        validationSpan.addMetadata({
+          'reading.payload.ok': result.ok,
+          'reading.payload.vocabCount': result.ok ? result.value.vocabItems.length : 0,
+        })
+        if (!result.ok) {
+          // 旧实现会在写库阶段失败；新实现在归一化边界确定性判定失败（结果一致，仅文案不同）。
+          validationSpan.recordError(new Error(result.reason), {
+            code: 'invalid_ai_payload',
+            operation: 'reading.normalize_payload',
+          })
+          validationSpan.end('error')
+        }
+        return result
+      },
+    )
     if (!normalized.ok) {
       return { status: 'failed', errorMessage: normalized.reason }
     }

@@ -61,15 +61,19 @@ describe('IngestReadingArticlesUseCase — 入口契约', () => {
     const result = await useCase.execute(validInput)
 
     expect(result).toBe(okResult)
-    expect(run).toHaveBeenCalledWith({
-      feeds: FEEDS,
-      maxPerRun: 8,
-      maxArticles: 50,
-      minContentChars: undefined,
-      maxVocabItems: undefined,
-      interArticleDelayMs: undefined,
-      source: undefined,
-    })
+    expect(run).toHaveBeenCalledWith(
+      {
+        feeds: FEEDS,
+        maxPerRun: 8,
+        maxArticles: 50,
+        minContentChars: undefined,
+        maxVocabItems: undefined,
+        interArticleDelayMs: undefined,
+        source: undefined,
+      },
+      // Phase 5：第二个参数是显式 ExecutionContext；未提供 trace 时转发 Null Object（不是 undefined）。
+      { trace: expect.objectContaining({ traceId: 'noop' }) },
+    )
   })
 
   it('可选配置透传给 Workflow', async () => {
@@ -91,6 +95,8 @@ describe('IngestReadingArticlesUseCase — 入口契约', () => {
         interArticleDelayMs: 0,
         source: { name: 'Custom', emoji: '🧪' },
       }),
+      // Phase 5：第二个参数是显式 ExecutionContext（未提供 trace 时为 Null Object）。
+      { trace: expect.objectContaining({ traceId: 'noop' }) },
     )
   })
 

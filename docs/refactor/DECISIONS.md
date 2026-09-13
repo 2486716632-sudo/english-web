@@ -345,3 +345,90 @@ Phase 3 落地统一 AI Client，并固定以下长期契约：
 - 交付层只做配置、日志与退出码映射；不得直接实例化适配器
 - 每个新步骤边界都应发出事件，Phase 5 在其上实现 Trace（本阶段不实现存储）
 - 迁移中的"有意行为变更"必须逐条记录在任务文档与设计文档，并接受外部审核
+
+---
+
+## ADR-013: 应用级 Trace / 可观测性契约（Phase 5）
+
+**日期:** 2026-09-13
+**状态:** Accepted（Phase 5 实现，等待外部审核确认）
+
+**决定:**
+
+Phase 5 建立项目**第一个应用级 Trace 系统**，并固定以下长期契约
+（详细设计见 `docs/refactor/TRACE_DESIGN.md`）：
+
+1. **TracePort 定义在 Application 层**（`src/application/ports/trace.ts`），
+   只有类型与接口：`startTrace()` 返回 `TraceScope` 句柄，span / event / error / end 都在句柄上完成。
+   Port **不依赖** DeepSeek / Prisma / Next.js / console / 文件系统。
+   配套最小 `ClockPort { now(): number }` 用于确定性计时（生产用真实时钟）。
+2. **显式 ExecutionContext 传播，不使用 `AsyncLocalStorage`**：
+   Delivery（CLI / HTTP Route）创建 root trace → 作为显式参数交给 Application Use Case →
+   Workflow → 子 span。未提供 trace 时使用 Null Object（`NOOP_TRACE_SCOPE`），行为与迁移前完全一致。
+   理由：依赖方向清晰、无隐式全局状态（并发安全）、可测试、与既有显式注入风格一致。
+3. **归一化三态 status**：`ok` / `degraded` / `error`。
+   `degraded` 表示"操作完成但存在已兜底/已隔离的失败"（AI 降级后文章仍入库、单篇失败但整轮继续）。
+   状态**不自动向上冒泡**：整轮 trace 的状态由应用入口按运行结果判定，
+   从而区分"单篇失败但整轮完成"（`degraded`）与"致命失败"（`error`）。
+4. **生命周期安全（单一不变式）**：*一个 trace 只有在没有存活后代 span 时，才可以被终结为"正常完成的 trace"。*
+   `runInTrace()` / `runInSpan()` 保证任何路径（含抛异常）下先结束子 span 再结束父 span，因此正常路径没有孤儿；
+   `end()` 幂等、终态后写入为 no-op。若 root 在仍有存活子 span 时被终结（手工埋点缺陷），
+   该 trace 被终结为**显式的生命周期违规状态**（`status = 'error'` + `error.code = 'lifecycle_violation'` +
+   `trace.lifecycleViolation` metadata），**不伪造**子 span 的结束，也**不进入**"正常完成的 trace"集合
+   （内存实现走 `getLifecycleViolations()`，console 实现输出独立的 `trace.lifecycle_violation` 记录）。
+   选择显式错误状态而非抛异常，是为了避免在清理路径上把观测缺陷升级成业务错误。全部有测试覆盖。
+5. **AI 可观测性用 Application 层装饰器**（`withAITracing`，`AIClientPort` → `AIClientPort`），
+   **不修改** Phase 3 已批准的 AI Client 契约。装饰器只消费 provider-neutral 的 `AICallMeta`
+   （provider / model / latency / attempts / usage / finishReason）并记录 `AIError` 归一化码。
+   由于 `AICallMeta.attempts` 把网络重试与解析修复**合并计数**，本阶段**不伪造**拆分后的计数：
+   只记录实际 attempts 与编排层已知的策略上限，把"按类型拆分计数"列为延后项（需修改 Phase 3 契约）。
+6. **metadata-first + 默认不采集内容**：只记录计数、尺寸、标识符、操作名、model/provider、错误码；
+   **不记录**完整 prompt、完整模型输出、任意用户文本。API Key / 密钥 / 认证头 / 连接串 / cookie /
+   环境变量由 Infrastructure 的 `sanitize.ts` 在**写入前**丢弃或脱敏（键名禁用集合 + 值模式脱敏 +
+   长度上限 + 类型收敛），并且不保留 stack trace。该策略是"数据离开进程"的最后一道防线，因此
+   放在 Infrastructure，而不是依赖调用方自觉。
+7. **本阶段不做 trace 持久化**：不改 `prisma/schema.prisma`、不建 Trace 表、不建 migration。
+   只提供两个本地 adapter：结构化 JSON 行（console，默认）与结构化内存记录（测试 / 运行期检视）。
+   **不引入**任何外部可观测性系统（OpenTelemetry / Jaeger / Zipkin / Datadog / Sentry tracing /
+   Kafka / Elasticsearch）。
+8. **范围限定为两个参考目标**：Phase 3 的 `POST /api/assistant` 与 Phase 4 的 Reading 内容摄取管线。
+   不为其它 feature / Route 加埋点，不进入 Phase 6。
+9. **最小 HTTP 增量**：`POST /api/assistant` 响应新增 `X-Trace-Id` 头；**不改** JSON 响应体结构、
+   状态码、重试语义、超时语义、model/provider 与用户可见行为。
+10. **可观测性不污染 Domain**：Domain 不得 import TracePort / Trace 类型 / logger / console；
+    既有 `ReadingPipelineEvent` 操作员事件流保持不变，trace 是并列的新增输出。
+11. **ACTIVE state 生命周期 = 仅执行期间**（外部审核 v2 修正 B-03）：
+    recorder 只在 trace 执行期间保留可变 TraceState；root 到达终态、adapter 收到终态快照之后，
+    该 state 在 `finally` 中被释放（从内部 map 移除并断开重引用）。
+    因此进程级单例 `getTraceRecorder()`（assistant 交付面）**不会**随请求数无限增长；
+    归档是 adapter 的职责（内存 adapter 保留快照副本供测试，console adapter 不保留任何 state）。
+    配套诊断语义被如实重命名：`activeTraceCount()` / `activeSpanCount()` 仅表示 ACTIVE state
+    （旧的 `openSpanCount()` / `traceCount()` 命名在释放后会产生误导，已移除）。
+12. **fail-open 遥测（外部审核 v2 修正 B-04）**：
+    adapter 输出失败（`onEventRecorded` / `onSpanEnded` / `onTraceEnded`，例如 console sink 抛错）
+    **绝不**影响业务控制流 —— 业务成功仍然成功并返回原结果，业务失败仍然抛出**原始**错误；
+    失败只被计数（`emissionFailures()`，无内容）、不重抛、不递归追踪、不打印 TraceRecord 内容、
+    不引入外部日志依赖。该边界是中心化的（recorder 内的 `emitSafely()`），
+    Assistant / Reading 及未来调用方都不需要各自包裹 try/catch。
+
+**理由:**
+
+- 项目此前不存在任何 correlation ID、统一 logger 或执行级记录：出现问题只能靠自由文本日志与
+  AI 元数据的偶然信息，无法回答"这一次执行内部发生了什么"。
+- Phase 3 已经产出 provider-neutral 的 `AICallMeta`，Phase 4 已经把 Workflow 步骤边界显式化，
+  因此可观测性可以在**不改动**这两个已批准基线的前提下接入（装饰器 + 显式 context）。
+- 若不在本阶段固定"status 语义 / 生命周期保证 / redaction 策略 / Port 归属"，
+  后续每个模块都会各自发明一套日志与状态语义，把可观测性变成新的技术债。
+- 明确不做持久化与外部平台，避免为"看起来高级"引入 collector、SDK 或 schema 变更。
+
+**后续影响:**
+
+- 后续任何新增 Use Case / Workflow：Delivery 创建 root trace，通过 `ExecutionContext` 显式传入，
+  用 `runInTrace` / `runInSpan` 包住步骤，AI 调用用 `withAITracing` 包住 port。
+- 新增 trace metadata 时必须遵守 `TRACE_DESIGN.md` §11 的禁用键集合与"默认不采集内容"策略。
+- 若要持久化 trace 或接入外部平台：新增一个实现 `TracePort` 的 Infrastructure adapter 并在
+  Composition Root 装配，**不修改** Application / Domain。
+- CLI 的操作员可见输出新增结构化 trace JSON 行（`TRACE_MODE=console` 默认，`memory` 可关闭）；
+  业务行为、日志分类与控制流不变。
+- Trace 持久化、metrics 聚合、prompt/output opt-in 捕获、`AICallMeta` 按类型拆分计数
+  均列为延后工作（`TRACE_DESIGN.md` §13 / §14）。

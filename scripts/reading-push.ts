@@ -9,10 +9,15 @@
  *   Adapters  : src/infrastructure/{rss,article-extraction,db}/
  *   AI Client : src/infrastructure/ai/（Phase 3 已批准的 AIClient + DeepSeekAdapter）
  *
+ * Phase 5：本文件额外负责**创建本次运行的 root trace**（一次运行 = 一个 traceId），
+ * 其余 span（workflow / 步骤 / AI / 持久化）由 Application 层在同一 trace 下产生。
+ * trace 输出格式为结构化 JSON 行（`TRACE_MODE=console`，默认；`memory` 则不输出）。
+ *
  * 用法：npm run push:reading
  */
 import 'dotenv/config'
 import type { ReadingPipelineEvent } from '../src/application/workflows/reading-pipeline.workflow'
+import { runInTrace } from '../src/application/observability/trace-helpers'
 import { createReadingIngestComposition } from '../src/bootstrap/reading-composition'
 
 const MAX_ARTICLES = 50
@@ -101,14 +106,34 @@ async function main() {
     process.exit(1)
   }
 
-  const { useCase, disconnect } = createReadingIngestComposition({ onEvent: reportEvent })
+  const { useCase, disconnect, traceRecorder } = createReadingIngestComposition({
+    onEvent: reportEvent,
+  })
 
   try {
-    const result = await useCase.execute({
-      feeds: FEEDS,
-      maxPerRun: MAX_PER_RUN,
-      maxArticles: MAX_ARTICLES,
-    })
+    // 一次运行 = 一个 traceId；Application 层在同一 trace 下产生 workflow / 步骤 / AI span。
+    // `runInTrace` 保证 trace 一定到达终态（Use Case 已按运行结果给出语义状态）。
+    const result = await runInTrace(
+      traceRecorder,
+      'reading.ingest',
+      {
+        category: 'use_case',
+        metadata: {
+          'reading.maxPerRun': MAX_PER_RUN,
+          'reading.maxArticles': MAX_ARTICLES,
+          'reading.feedCount': FEEDS.length,
+        },
+      },
+      (trace) =>
+        useCase.execute(
+          {
+            feeds: FEEDS,
+            maxPerRun: MAX_PER_RUN,
+            maxArticles: MAX_ARTICLES,
+          },
+          { trace },
+        ),
+    )
 
     if (result.earlyExit) return
 

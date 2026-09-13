@@ -2,14 +2,22 @@
 
 ## 当前阶段
 
-**Phase 4 — ✅ Completed / Approved（2026-09-13 外部复审通过；Blocking Issues: None）**
+**上一个已关闭阶段：Phase 4 — ✅ Completed / Approved（2026-09-13 外部复审通过；Blocking Issues: None）**
 - 审核轨迹：v1 Changes Requested → v2 Minor Changes Requested → v3 **Accepted / Approved**
 - Reading 内容摄取管线现在是**已批准的参考确定性 Content Pipeline**（Use Case + Workflow + Ports + Domain 纯规则）
 - 统一 AI Client（Phase 3，89 tests）与 Phase 2 受保护测试基线（95 tests）均保持不变并全绿
 - 任务定义：`docs/refactor/tasks/phase-4-task.md`；设计文档：`docs/refactor/CONTENT_PIPELINE_DESIGN.md`
 - 交接：`docs/refactor/handoffs/phase-4-handoff.md`；审核记录：`docs/refactor/reviews/phase-4-review.md`
 - ✅ 基线已提交（`feat: establish reading content pipeline architecture`）；临时审核 ZIP 已删除
-- 下一阶段：**Phase 5 — Ready / Not Started**（可在 Workflow 的显式步骤事件边界上构建 Trace / 可观测性）
+- **Phase 5 — ✅ Completed / Approved（2026-09-13 外部复审 v3 通过；Blocking Issues: None）**
+  在两个已批准的参考目标上建立了应用级 Trace / 可观测性
+  （Phase 3 `/api/assistant` + Phase 4 Reading 内容摄取管线）。任务定义见
+  `docs/refactor/tasks/phase-5-task.md`，设计见 `docs/refactor/TRACE_DESIGN.md`，
+  交接见 `docs/refactor/handoffs/phase-5-handoff.md`，审核轨迹见
+  `docs/refactor/reviews/phase-5-review.md`（v1 Changes Requested → v2 Changes Requested → **v3 Approved**）
+- **下一阶段：Phase 6 — Ready / Not Started**
+  （可在 Phase 5 已批准的 `TracePort` / `ExecutionContext` / `TraceScope` 生命周期契约之上工作；
+  **本会话不启动 Phase 6**）
 
 ### 上一阶段（Phase 3）归档
 
@@ -264,16 +272,54 @@
 
 ## Phase 5：Trace 与可观测性
 
-**状态:** Ready / Not Started（等待用户明确批准；Phase 4 已在 Workflow 的显式步骤边界预留 `ReadingPipelineEvent` 事件，Trace hook 可直接挂在这些边界上）
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**状态:** ✅ **Completed / Approved**（2026-09-13 外部复审 v3 通过：Review Status = Approved，
+Blocking Issues = None，Phase 6 Release Decision = Approved after administrative closeout）
+外部审核 v1 = Changes Requested（B-01 `label.*` 元数据 redaction 绕过、B-02 孤儿 span 生命周期契约不一致），
+两项已在 v2 修正并被外部审核接受；外部审核 v2 = Changes Requested
+（B-03 终态 TraceState 未释放导致进程内存增长、B-04 遥测输出失败可逃逸到业务流），两项已在 v3 修正并补充测试。
+在两个已批准的参考目标上建立了应用级 Trace：Phase 3 `POST /api/assistant`（HTTP → Use Case → AI）
+与 Phase 4 Reading 内容摄取管线（Use Case → Workflow 显式步骤 → AI / 持久化 / 抽取）。
+Phase 4 已预留的 `ReadingPipelineEvent` 操作员事件流保持不变，Trace 是并列的新增结构化输出。
+**开始日期:** 2026-09-13
+**实现完成日期:** 2026-09-13
+**完成日期:** 2026-09-13
+**审核:** ✅ 通过（v1 Changes Requested → v2 Changes Requested → **v3 Approved**，Blocking Issues: None）
+
+### 最终被接受的长期不变式
+
+1. Trace metadata 是 metadata-first：内容 / 凭据型标签由 Application 白名单 + Infrastructure 清洗双重阻断
+2. trace 在有存活后代 span 时不得视为正常完成；生命周期违规单独显式记录
+3. 可变 ACTIVE TraceState 只在执行期间存在，终态快照交付后释放
+4. 可观测性 fail-open：遥测输出失败不改变业务控制流、不替换原始业务错误
+5. Domain 无 Trace 依赖；6. Phase 3 AI Client 保持完整（经 Application 装饰器观测）
+7. Trace 持久化与外部可观测性平台继续延后
+
+- 任务定义：`docs/refactor/tasks/phase-5-task.md`；设计：`docs/refactor/TRACE_DESIGN.md`
+- 决策：`DECISIONS.md` ADR-013（应用级 Trace 契约）
+- 交接：`docs/refactor/handoffs/phase-5-handoff.md`；审核记录：`docs/refactor/reviews/phase-5-review.md`
+- 新增：`application/ports/{trace,clock}.ts`、`application/observability/*`、
+  `infrastructure/telemetry/*`、`infrastructure/time/system-clock.ts`、`bootstrap/trace-composition.ts`
+- 结果：28 files / **442 tests passed**（Phase 2 95 + Phase 3 89 + Phase 4 108 + Phase 5 150）；
+  `npx tsc --noEmit` 0 errors；`npx next build` 通过（41 routes）；HTTP 冒烟 14/14；
+  未修改 `schema.prisma`、未新增依赖、未引入外部可观测性平台
+- v3 长期不变式：ACTIVE state 仅在 trace 执行期间保留（终态后 `finally` 释放）；遥测输出 fail-open
+  （输出失败不改变业务结果、不替换原始业务错误）
+- 基线提交：`feat: establish application tracing and observability baseline`（唯一提交，工作区干净）
+- 临时审核产物：`phase-5-review-pack-v1/v2/v3.zip` 与评审期打包 / 证据临时文件已在行政收尾中删除
+- 非阻断的后续加固提示（审核方记录）：① `InMemoryTraceRecorder` 面向测试 / 检视，
+  不得当作长时间运行的生产 trace 存储；② 未来若持久化 trace，应重新审查错误 message 策略，
+  可能改为基于 code 的显式安全 message 映射
+- 下一阶段：**Phase 6 — Ready / Not Started**（需用户明确批准后启动；**本会话不启动**）
 
 ---
 
 ## Phase 6：用户状态与记忆系统
 
-**状态:** Not Started
+**状态:** Ready / Not Started（Phase 5 已于 2026-09-13 通过外部审核并完成行政收尾；
+启动需用户明确批准；**本会话不启动 Phase 6**）
+**可依赖的 Phase 5 已批准基线:** `TracePort` / `ExecutionContext` / `runInTrace` `runInSpan`（生命周期安全）/
+`TracedAIClient`（AI 调用可观测性装饰器）/ fail-open 的 Trace recorder 行为；
+Domain 必须保持无 Trace 依赖；trace 持久化与外部可观测性平台仍延后
 **开始日期:** —
 **完成日期:** —
 **审核:** ⏳

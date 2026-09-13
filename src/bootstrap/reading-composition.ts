@@ -6,6 +6,7 @@
 // 两个文件都属于 Composition Root 层（见 docs/refactor/CONTENT_PIPELINE_DESIGN.md §composition）。
 
 import { IngestReadingArticlesUseCase } from '@/application/use-cases/reading/ingest-reading-articles.use-case'
+import type { TracePort } from '@/application/ports/trace'
 import {
   ReadingPipelineWorkflow,
   type ReadingPipelineEvent,
@@ -16,18 +17,25 @@ import { ReadabilityArticleExtractor } from '@/infrastructure/article-extraction
 import { PrismaReadingArticleRepository } from '@/infrastructure/db/reading-article.repository'
 import { createStandalonePrismaClient } from '@/infrastructure/db/standalone-prisma'
 import { RssFeedSource } from '@/infrastructure/rss/rss-feed-source'
+import { createTraceRecorder, type TraceRecorderMode } from '@/bootstrap/trace-composition'
 
 export interface ReadingCompositionOptions {
   /** 步骤事件回调：交付层用它生成操作员日志（Phase 5 在此挂 Trace）。 */
   onEvent?: (event: ReadingPipelineEvent) => void
   /** 覆盖数据库连接串（默认读取 `DATABASE_URL`），便于测试/脚本化调用。 */
   databaseUrl?: string
+  /** 覆盖 trace recorder（测试注入内存实现）。 */
+  traceRecorder?: TracePort
+  /** trace 输出模式；默认走 `TRACE_MODE` / `NODE_ENV` 解析（CLI 默认 console）。 */
+  traceMode?: TraceRecorderMode
 }
 
 export interface ReadingIngestComposition {
   useCase: IngestReadingArticlesUseCase
   /** 释放数据库连接（CLI 在 finally 中调用）。 */
   disconnect: () => Promise<void>
+  /** 交付层用它创建本次运行的 root trace（一次运行 = 一个 traceId）。 */
+  traceRecorder: TracePort
 }
 
 /**
@@ -38,6 +46,7 @@ export function createReadingIngestComposition(
   options: ReadingCompositionOptions = {},
 ): ReadingIngestComposition {
   const { client, disconnect } = createStandalonePrismaClient(options.databaseUrl)
+  const traceRecorder = options.traceRecorder ?? createTraceRecorder({ mode: options.traceMode })
 
   const adapter = new DeepSeekAdapter({
     apiKey: process.env.DEEPSEEK_API_KEY,
@@ -54,5 +63,5 @@ export function createReadingIngestComposition(
     { onEvent: options.onEvent },
   )
 
-  return { useCase: new IngestReadingArticlesUseCase(workflow), disconnect }
+  return { useCase: new IngestReadingArticlesUseCase(workflow), disconnect, traceRecorder }
 }

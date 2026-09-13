@@ -4,6 +4,9 @@
 
 import type { AIClientPort } from '@/application/ports/ai-client'
 import type { WordCard, WordLookupPort } from '@/application/ports/word-lookup'
+import { resolveTraceScope, type ExecutionContext } from '@/application/observability/execution-context'
+import { runInSpan } from '@/application/observability/trace-helpers'
+import { withAITracing } from '@/application/observability/traced-ai-client'
 import { buildAssistantQaPrompt, type AssistantQaTurn } from '@/application/prompts/assistant/qa.prompt'
 
 /**
@@ -17,6 +20,10 @@ import { buildAssistantQaPrompt, type AssistantQaTurn } from '@/application/prom
  *  - 选择并构建 Prompt
  *  - 通过 AIClientPort 执行 AI 调用
  *  - 返回 DTO
+ *
+ * Phase 5 追加（纯增量）：把本次执行挂在调用方提供的 trace 下 ——
+ * `assistant.reply`（use_case）→ `assistant.word_lookup`（persistence，可选）→ `ai.chat`（ai）。
+ * 只记录计数 / 尺寸 / 归一化元数据，不记录用户文本与 prompt 内容。
  *
  * 本 Use Case **不**负责：HTTP 语义、provider API Key、fetch、JSON 解析细节、学习业务规则。
  */
@@ -65,24 +72,56 @@ export function deriveWordLookupKey(input: AssistantQueryInput): string {
 export class ReplyToAssistantQueryUseCase {
   constructor(private readonly deps: ReplyToAssistantQueryDeps) {}
 
-  async execute(input: AssistantQueryInput): Promise<AssistantReplyResult> {
-    const lookupKey = deriveWordLookupKey(input)
+  /**
+   * `context.trace` 由交付层（HTTP Route）创建并显式传入；缺省时使用 Null Object，
+   * 行为与迁移前完全一致（tracing 是纯增量）。
+   */
+  async execute(
+    input: AssistantQueryInput,
+    context: ExecutionContext = {},
+  ): Promise<AssistantReplyResult> {
+    const trace = resolveTraceScope(context)
 
-    // 词卡是可选的增强：WordLookupPort 契约保证不抛异常，失败即降级为 null。
-    const wordData = lookupKey.length > 0 ? await this.deps.wordLookup.findByWord(lookupKey) : null
+    return runInSpan(trace, 'assistant.reply', { category: 'use_case' }, async (span) => {
+      const lookupKey = deriveWordLookupKey(input)
 
-    const prompt = buildAssistantQaPrompt({ turns: input.messages, wordCard: wordData })
+      // 词卡是可选的增强：WordLookupPort 契约保证不抛异常，失败即降级为 null。
+      // 只记录"是否命中"与键长度 —— 查询词本身属于用户输入，默认不入 trace。
+      const wordData =
+        lookupKey.length > 0
+          ? await runInSpan(
+              span,
+              'assistant.word_lookup',
+              {
+                category: 'persistence',
+                metadata: { 'assistant.lookupKeyLength': lookupKey.length },
+              },
+              async (lookupSpan) => {
+                const card = await this.deps.wordLookup.findByWord(lookupKey)
+                lookupSpan.addMetadata({ 'assistant.wordFound': card !== null })
+                return card
+              },
+            )
+          : null
 
-    const result = await this.deps.aiClient.chat({
-      messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
-      temperature: ASSISTANT_AI_TEMPERATURE,
-      maxTokens: ASSISTANT_AI_MAX_TOKENS,
-      timeoutMs: ASSISTANT_AI_TIMEOUT_MS,
-      totalBudgetMs: ASSISTANT_AI_TOTAL_BUDGET_MS,
-      retry: ASSISTANT_AI_RETRY_POLICY,
-      metadata: { useCase: 'assistant.qa', promptVersion: '1.0' },
+      const prompt = buildAssistantQaPrompt({ turns: input.messages, wordCard: wordData })
+
+      // AI span 由装饰器产生：provider / model / attempts / usage / finishReason / 错误码。
+      const aiClient = withAITracing(this.deps.aiClient, span)
+
+      const result = await aiClient.chat({
+        messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
+        temperature: ASSISTANT_AI_TEMPERATURE,
+        maxTokens: ASSISTANT_AI_MAX_TOKENS,
+        timeoutMs: ASSISTANT_AI_TIMEOUT_MS,
+        totalBudgetMs: ASSISTANT_AI_TOTAL_BUDGET_MS,
+        retry: ASSISTANT_AI_RETRY_POLICY,
+        metadata: { useCase: 'assistant.qa', promptVersion: '1.0' },
+      })
+
+      span.addMetadata({ 'assistant.wordFound': wordData !== null })
+
+      return { reply: result.content, wordData }
     })
-
-    return { reply: result.content, wordData }
   }
 }
