@@ -229,3 +229,60 @@ Phase 4 选择 Reading Pipeline 作为首个完整迁移到新架构的样板 Pi
 - MIGRATION_PLAN.md 新增 Phase 9 章节
 - PHASE_STATUS.md 恢复 Phase 9
 - Phase 9 不修改架构，只负责部署、文档和展示材料
+
+---
+
+## ADR-011: 统一 AI Client 契约（Port 归属、超时/重试策略、错误模型）
+
+**日期:** 2026-09-12
+**状态:** Accepted（Phase 3 实现，等待外部审核确认）
+
+**决定:**
+Phase 3 落地统一 AI Client，并固定以下长期契约：
+
+1. **`AIClientPort` 定义在 Application 层**（`src/application/ports/ai-client.ts`），
+   包含 provider-independent 的请求/响应类型与归一化错误模型 `AIError`；
+   Infrastructure 提供实现与 provider adapter（`src/infrastructure/ai/`）。符合 ADR-007。
+2. **错误模型保持 8 个错误码**：`timeout` / `rate_limited` / `provider_error` / `network_error` /
+   `auth_error` / `invalid_request` / `invalid_response` / `unknown`。
+   只有前四类标记 `retryable = true`。
+3. **超时采用「单次尝试超时 + 整次调用总预算」双约束**：
+   单次尝试实际超时 = `min(timeoutMs, 剩余预算)`；默认值均为 30 000 ms。
+   不存在无超时的 AI 请求路径。
+4. **三类重试严格区分**：传输/网络重试（`retry.ts`，`maxAttempts` 默认 3）、
+   provider 重试（同一机制，状态码是触发源之一）、结构化输出**解析修复**
+   （`structured-output.ts`，`maxRepairAttempts` 默认 1）。
+   认证/配置/确定性请求错误不重试；不存在无限重试路径。
+5. **prompt-neutral 的编排参数不下发 provider**：`timeoutMs` / `totalBudgetMs` / `retry` / `metadata`
+   只用于 Infrastructure 编排与未来的可观测性。
+6. **Provider 接入只经 Adapter**：新增模型供应商只需实现 `AIProviderAdapter` 并在 Composition Root 装配，
+   不改动 Application 层。
+
+**理由:**
+- 11 个既存 AI 调用点各自实现超时、错误处理与 JSON 解析，其中 4 处完全没有超时、11 处全部没有重试
+- 若不在本阶段固定契约，后续模块迁移会各自发明一套语义，统一层就失去意义
+- 双约束超时让「新增重试」不改变用户可见等待上限（参考迁移仍是 30s 上限）
+- 明确区分网络重试与解析修复，避免把确定性格式错误当作可重试错误反复消耗额度
+
+**后续影响:**
+- 后续 Phase 迁移任何 AI 调用时，必须通过 `AIClientPort`，不得在业务代码中直接 `fetch` provider
+- 新增 feature 的 Prompt 放 `src/application/prompts/`，不得放入 Infrastructure
+- 结构化输出统一经 `chatStructured()`；各模块的校验规则以 `AIStructuredSchema` 形式接入
+- `AICallMeta`（延迟、token、attempts）为 Phase 5 Trace 的输入，暂不持久化
+- 详细设计见 `docs/refactor/AI_CLIENT_DESIGN.md`
+
+**修正记录 — v2（2026-09-12，Phase 3 外部审核 v1 Changes Requested 后）:**
+
+1. **`totalBudgetMs` = 整个逻辑调用的预算（单一 deadline）**
+   `chatStructured()` 的网络重试与解析修复必须共享同一个 deadline；
+   每次 provider 尝试只获得剩余预算；预算耗尽后**不得**再发起任何 provider 请求，
+   并按 `timeout` 归一化失败。任何代码路径都不得为结构化调用重新计算 deadline。
+   （原实现每次解析修复都重新调用 `chat()`，从而重置预算，最多可消耗约两倍预算。）
+2. **provider 畸形响应 = `invalid_response`**
+   HTTP 2xx 但响应体无法解析为 provider 约定 JSON 时，归类为 `invalid_response`（`retryable = false`），
+   而不是 `unknown` 或网络失败；原始解析错误保留在 `cause`，响应体内容不回显。
+   （空 `choices` 仍翻译为 `content = ''`，这一既有行为不变。）
+3. **迁移默认不得改变既有行为**
+   统一层的默认策略（有界重试 `maxAttempts = 3`）只适用于**明确声明接受该行为变化**的调用点。
+   参考迁移 `/api/assistant` 显式使用 `retry: { maxAttempts: 1 }`，因为迁移前该 Route 只发起一次请求。
+   后续任何调用点若要启用重试，必须在迁移文档中显式声明该行为变更并接受审核。

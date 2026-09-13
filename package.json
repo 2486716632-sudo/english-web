@@ -7,6 +7,8 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "eslint",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"seed": "tsx prisma/seed.ts",
 		"push:reading": "tsx scripts/reading-push.ts",
 		"postinstall": "prisma generate"
@@ -49,6 +51,8 @@
 		"jsrepo": "^3.8.0",
 		"tailwindcss": "^4",
 		"tsx": "^4.22.3",
-		"typescript": "^5"
+		"typescript": "^5",
+		"vite-tsconfig-paths": "^6.1.1",
+		"vitest": "^4.1.10"
 	}
 }
