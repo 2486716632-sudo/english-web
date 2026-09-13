@@ -235,7 +235,7 @@ Phase 4 选择 Reading Pipeline 作为首个完整迁移到新架构的样板 Pi
 ## ADR-011: 统一 AI Client 契约（Port 归属、超时/重试策略、错误模型）
 
 **日期:** 2026-09-12
-**状态:** Accepted（Phase 3 实现，等待外部审核确认）
+**状态:** Accepted（Phase 3 已于 2026-09-13 通过外部复审：Review Status = Approved，Blocking Issues = None）
 
 **决定:**
 Phase 3 落地统一 AI Client，并固定以下长期契约：
@@ -286,3 +286,62 @@ Phase 3 落地统一 AI Client，并固定以下长期契约：
    统一层的默认策略（有界重试 `maxAttempts = 3`）只适用于**明确声明接受该行为变化**的调用点。
    参考迁移 `/api/assistant` 显式使用 `retry: { maxAttempts: 1 }`，因为迁移前该 Route 只发起一次请求。
    后续任何调用点若要启用重试，必须在迁移文档中显式声明该行为变更并接受审核。
+
+---
+
+## ADR-012: Content Pipeline 样板（Reading 摄取管线）与迁移行为保真原则
+
+**日期:** 2026-09-13
+**状态:** Accepted（Phase 4 实现，等待外部审核确认）
+
+**决定:**
+
+1. **Reading 内容摄取管线成为 Content Pipeline 的参考样板。**
+   链接方式：`交付层（CLI）→ Application Use Case → Workflow（显式步骤）→ Application Ports → Infrastructure Adapters → 外部系统`。
+   Workflow 暴露 4 个显式步骤边界（collectCandidates / selectNewArticles / processArticles / trimToLimit），
+   并以结构化事件（`ReadingPipelineEvent`）作为日志与未来 Trace 的挂点。
+   后续内容管线（Listening refill 等）迁移时照此结构，**不引入**工作流框架、队列或编排平台。
+2. **Composition Root 按交付面拆分文件**：`src/bootstrap/index.ts`（Next 服务端 / assistant 面）与
+   `src/bootstrap/reading-composition.ts`（CLI 面）。目的是避免把 CLI 专用重依赖
+   （rss-parser / jsdom / node-postgres）拉进 Next 打包，也避免 CLI 加载 Next 专用的
+   Prisma 单例（其在模块加载时会建连并 warmup）。两者同属 Composition Root 层。
+3. **既有管线迁移的行为保真原则**：统一基础设施提供的"新能力"（网络重试、解析修复）
+   **默认不得自动生效**；每次迁移要么显式 opt-in 并在迁移文档中声明这是行为变更，
+   要么显式 opt-out 以保持既有语义。若架构本身无法保留某个既有行为
+   （例如 Phase 3 的"不存在无超时路径"），必须在任务文档与设计文档中**显式列出**该变更及其影响面。
+4. **结构化输出生产化模式（含 v2 修正）**：分为三段，且**原始负载与归一化结果分别建模**：
+   1. **提取**：Infrastructure（Phase 3 的 `chatStructured()` / `structured-output.ts`）负责取得 JSON；
+   2. **归一化**：Domain 纯函数按**该管线迁移前的真实语义**逐字段兜底
+      （旧 Reading 管线是 `titleZh || ''`、`Array.isArray(vocabItems) ? … : []`，
+      而不是"整包校验失败就全部丢弃"）；
+   3. **持久化形状**：归一化结果类型保证字段具体（例如 `type: string`），
+      原始负载类型允许字段可选（例如 `type?: string`）—— 不得用类型断言掩盖不一致。
+   迁移前"无法安全恢复的负载最终导致该条失败"的行为必须保留（在归一化阶段判定失败），
+   不得静默变成"成功但降级"的文章。**可选字段的 falsy 兜底必须逐字对齐旧实现的 `||` 语义**
+   （例如 `type: v.type || 'word'`、`partOfSpeech: v.partOfSpeech || null`：
+   `undefined` / `""` / `null` / `false` / `0` 走兜底，只有 truthy 非字符串才判失败）；
+   归一化实现应使用控制流收窄而非类型断言。Phase 2 的离线契约测试保持不变。
+   **不得把依赖运行时副作用（例如操作员日志里的 `titleZh.slice()` 抛错）的旧结果固化为领域规则**：
+   这类结果应以确定性判定替代，并作为显式行为变更记录（Phase 4 的 C7）。
+5. **应用层错误模型保持精简**：`ApplicationError` 只为真实出现的失败类别建码
+   （`invalid_input` / `feed_unavailable` / `persistence_failed` / `unexpected`）；
+   AI 失败继续复用 Phase 3 的归一化 `AIError`，不重复定义。
+6. **错误码必须由真实路径产生**：`persistence_failed` 必须由真实的运行级仓储操作
+   （去重查询 / 统计 / 取最旧 / 裁剪删除）产生，不得退化为 `unexpected`；
+   单条文章的 `createArticle()` 失败仍按既有语义隔离为该条失败，**不得**升级为整轮失败。
+7. **迁移中的"安全改进"必须显式记录**：例如运行配置校验（`maxPerRun` 必须为正整数）
+   相对旧 CLI（依赖 `slice()` 宽松行为）是**有意的行为变更**，
+   必须作为独立条目（C5）记录原因与影响，不得声称行为完全不变。
+
+**理由:**
+- Reading 摄取管线是项目里唯一同时具备"外部内容源 + AI 结构化输出 + 持久化 + 运行级清理"的确定性多步流程，
+  能真正验证架构而不需要发明步骤
+- 管线此前 0 测试且全部逻辑内联在脚本里；端口化之后可完全离线验证（57 个新测试）
+- 交付面分离解决了"Next 服务端与 CLI 共用同一个 Composition Root 会互相拖入重依赖"的实际问题
+- 行为保真原则把 Phase 3 参考迁移的经验固化为可复用的迁移规则，避免后续迁移出现"静默改行为"
+
+**后续影响:**
+- 后续内容管线迁移必须复用该结构（Use Case + Workflow + Ports + Domain 纯规则）
+- 交付层只做配置、日志与退出码映射；不得直接实例化适配器
+- 每个新步骤边界都应发出事件，Phase 5 在其上实现 Trace（本阶段不实现存储）
+- 迁移中的"有意行为变更"必须逐条记录在任务文档与设计文档，并接受外部审核

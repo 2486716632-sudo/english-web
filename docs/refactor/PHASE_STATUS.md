@@ -2,6 +2,17 @@
 
 ## 当前阶段
 
+**Phase 4 — ✅ Completed / Approved（2026-09-13 外部复审通过；Blocking Issues: None）**
+- 审核轨迹：v1 Changes Requested → v2 Minor Changes Requested → v3 **Accepted / Approved**
+- Reading 内容摄取管线现在是**已批准的参考确定性 Content Pipeline**（Use Case + Workflow + Ports + Domain 纯规则）
+- 统一 AI Client（Phase 3，89 tests）与 Phase 2 受保护测试基线（95 tests）均保持不变并全绿
+- 任务定义：`docs/refactor/tasks/phase-4-task.md`；设计文档：`docs/refactor/CONTENT_PIPELINE_DESIGN.md`
+- 交接：`docs/refactor/handoffs/phase-4-handoff.md`；审核记录：`docs/refactor/reviews/phase-4-review.md`
+- ✅ 基线已提交（`feat: establish reading content pipeline architecture`）；临时审核 ZIP 已删除
+- 下一阶段：**Phase 5 — Ready / Not Started**（可在 Workflow 的显式步骤事件边界上构建 Trace / 可观测性）
+
+### 上一阶段（Phase 3）归档
+
 **Phase 3 — ✅ Completed / Approved（2026-09-13 外部复审通过，Blocking Issues: None）**
 - Phase 2 已正式关闭（Review Status = Approved，Blocking Issues = None）；其测试与评估基线是**受保护基线（protected baseline）**
 - Phase 3 目标：建立统一 AI Client 基础设施 + 唯一一条受控纵向迁移（`POST /api/assistant`）
@@ -191,16 +202,69 @@
 
 ## Phase 4：重构一条 Pipeline 样板
 
-**状态:** Ready / Not Started（等待用户明确批准；启动前必须复用 Phase 2 受保护测试与 Phase 3 AI Client 测试）
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**状态:** ✅ **Completed / Approved**（2026-09-13 外部复审 v3：Accepted / Approved，Blocking Issues: None）
+**开始日期:** 2026-09-13
+**实现完成日期:** 2026-09-13
+**完成日期:** 2026-09-13
+**审核:** ✅ 通过（v1 Changes Requested → v2 Minor Changes Requested → v3 Accepted / Approved）
+
+### 参考 Pipeline
+- **Reading 内容摄取管线**：`npm run push:reading` → `scripts/reading-push.ts`
+- 链路：The Conversation Atom feeds → RSS 解析 → Readability 抽取 → DeepSeek 结构化输出 → 校验 → Prisma 持久化 → 裁剪
+
+### 约束
+- 只迁移这一条管线；不新增依赖；不改 `schema.prisma`
+- 必须复用 Phase 3 的 `AIClientPort`，不得直接调用 provider
+- 不调用真实 AI/TTS 进行自动化验证
+
+### 实现产出
+- Domain：`domain/reading/{types,content-rules,ai-response-rules}.ts`
+- Application：`application/errors.ts`、`ports/{feed-source,article-extractor,reading-article-repository}.ts`、`prompts/reading/process-article.prompt.ts`、`workflows/reading-pipeline.workflow.ts`、`use-cases/reading/ingest-reading-articles.use-case.ts`
+- Infrastructure：`rss/rss-feed-source.ts`、`article-extraction/readability-article-extractor.ts`、`db/{reading-article.repository,standalone-prisma}.ts`
+- Composition Root：`bootstrap/reading-composition.ts`（与 assistant 面分离）
+- 交付层：`scripts/reading-push.ts`（330 行 → 约 110 行，只做配置 + 日志映射）
+- 决策：`DECISIONS.md` ADR-012（Content Pipeline 样板 + 迁移行为保真原则）
+- 新增测试：104（Domain 46 / Workflow 27 / Use Case 14 / Repository 6 / Extractor 7 / RSS 4）
+- 审核记录：`docs/refactor/reviews/phase-4-review.md`（v1 Changes Requested + 修正记录）
+
+### v2 修正（外部审核 v1 = Changes Requested）
+
+| # | 阻断问题 | 修正 |
+|---|---------|------|
+| 1 | 严格 validator 丢弃全部 AI 字段；非法嵌套负载被静默降级 | 恢复旧管线**逐字段兜底**语义（Domain 归一化）；不可安全恢复的负载 → 该条 failed（不入库）；JSON 提取仍走 Phase 3 边界 |
+| 2 | 原始/归一化类型不一致（`type: string` 但允许 undefined） | 拆分 `RawReadingVocabItem`（`type?`）与 `ReadingVocabItem`（`type: string`），归一化补 `'word'`，无类型断言 |
+| 3 | `persistence_failed` 无生产路径 | 运行级仓储操作（去重查询/统计/取最旧/裁剪）→ `ApplicationError('persistence_failed')`；单条 `createArticle` 失败仍隔离 |
+
+其余变化：C 清单更新为 C1–C6（新增 C5 配置校验快速失败、C6 `null` 负载边界）；措辞修正为"日志分类与控制流一致，底层错误文案可能不同"；ADR-011 过期状态订正；新增 `RssFeedSource` 适配器测试。
+
+### v3 修正（外部审核 v2 = Minor Changes Requested）
+
+| # | 小修正 | 修正 |
+|---|--------|------|
+| 1 | `type` / `partOfSpeech` 的 falsy 兜底语义未对齐旧实现 `\|\|` | falsy（`undefined`/`""`/`null`/`false`/`0`）→ 兜底（`'word'` / `null`）；truthy 非字符串 → 失败；新增 20 个对照测试 |
+| 2 | 归一化边界仍含类型断言 | 改为局部变量 + 控制流收窄 + 类型守卫；该文件已无任何 `as` 断言 |
+| 3 | C6 未用真实 Phase 3 边界验证 | 新增真实 `AIClient` + 内存假 provider 的测试：JSON `null` → `invalid_response` → 降级入库（Phase 3 实现未改）。**v4 更正：该结果与旧管线（内层抛错 → 外层 catch 降级 → 文章入库）一致，故 C6 = 行为保持，已移出变更清单** |
+
+### 回归结果
+| 检查 | 结果 |
+|------|------|
+| `npx vitest run` | ✅ 19 files / **292 tests passed**（Phase 2 基线 95 + Phase 3 89 + Phase 4 108） |
+| `npx tsc --noEmit` | ✅ 0 errors |
+| `npx next build` | ✅ 通过（41 routes，33/33 静态页面；仅既有警告） |
+| Phase 3 lint 范围 + Phase 4 新增文件 | ✅ 0 errors, 0 warnings |
+| `tests/smoke/api-smoke.sh`（实际启动 dev server） | ✅ 14 passed / 0 failed / 0 skipped |
+| 真实 AI 调用 | ✅ 无（管线测试全部使用 fake Ports） |
+
+### 本阶段遗留（留给后续 Phase）
+- 其余 9 个 AI 调用点与 5 条其它管线未迁移（见 CONTENT_PIPELINE_DESIGN §10）
+- `chatStructured()` 的解析修复能力仍未启用（需显式授权）
+- Trace/指标持久化属 Phase 5（本阶段只预留步骤事件边界）
 
 ---
 
 ## Phase 5：Trace 与可观测性
 
-**状态:** Not Started
+**状态:** Ready / Not Started（等待用户明确批准；Phase 4 已在 Workflow 的显式步骤边界预留 `ReadingPipelineEvent` 事件，Trace hook 可直接挂在这些边界上）
 **开始日期:** —
 **完成日期:** —
 **审核:** ⏳
