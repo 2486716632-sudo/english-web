@@ -42,7 +42,6 @@ yarn-error.log*
 .claude/
 .agents/
 CLAUDE.md
-AGENTS.md
 skills-lock.json
 memory_current_task.md
 

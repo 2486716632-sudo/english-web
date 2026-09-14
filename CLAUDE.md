@@ -3,7 +3,7 @@
 # English Learning PWA
 
 Next.js 16.2.6 + DeepSeek + Tailwind v4 + Prisma/PostgreSQL (Neon).
-设计规格 & 冻结模块明细 → `VISION.md`.不用 ~/.claude/ 记忆系统
+架构与设计规则 → `docs/refactor/ARCHITECTURE_RULES.md` / `docs/refactor/TARGET_ARCHITECTURE.md`;重构路线 → `docs/refactor/MASTER_PLAN.md`。冻结模块规则见本文件「禁止修改」一节。不用 ~/.claude/ 记忆系统
 
 ## 关键约束
 - **DeepSeek json_object**: ≥7 条返回空 → 两步法（纯文本回复 + 短上下文 json_object）
@@ -33,6 +33,7 @@ AI Coach 口语对练 + 场景系统 / Words 页面 UI / `schema.prisma`
 - 滚动恢复: 模块级 `{scrollY, tabId}` → useState 懒初始化 → useLayoutEffect
 
 ## Refactor Rules
+- 跨会话的 Phase 执行 / 会话恢复 / 评审与修正 / 收尾 / 未来 Phase 命令重建,遵循 `docs/refactor/PHASE_EXECUTION_PROTOCOL.md`
 - 遵循 docs/refactor/MASTER_PLAN.md 定义的 Phase 顺序
 - 修改前先读 docs/refactor/PHASE_STATUS.md 了解当前阶段
 - 每阶段完成后更新 PHASE_STATUS.md 并产出 handoff
