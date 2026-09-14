@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAssistantReplyUseCase } from '@/bootstrap'
+import { resolveCurrentUserId } from '@/bootstrap/identity'
 import { getTraceRecorder } from '@/bootstrap/trace-composition'
 import { runInTrace } from '@/application/observability/trace-helpers'
 import type { AssistantQaTurn } from '@/application/prompts/assistant/qa.prompt'
@@ -11,6 +12,10 @@ import type { AssistantQaTurn } from '@/application/prompts/assistant/qa.prompt'
  *  - 本次请求的 root trace = `http.assistant`（category `http`），在 `X-Trace-Id` 响应头回传 traceId
  *  - JSON 响应体结构**未改变**；失败时的友好 200 回退行为**未改变**
  *  - 失败请求仍把 trace 标记为失败（`error` + 归一化错误码），便于事后定位
+ *
+ * Phase 6 追加（最小 Delivery 身份解析，不改变响应契约）：
+ *  - 在 Delivery 边界解析逻辑用户（过渡期 = 确定性默认用户），并以 `ExecutionContext.userId` 交给 Application
+ *  - trace 只记录"是否解析到用户"，**不**记录用户标识本身（隐私默认）
  */
 export async function POST(request: NextRequest) {
   return runInTrace(
@@ -18,13 +23,20 @@ export async function POST(request: NextRequest) {
     'http.assistant',
     {
       category: 'http',
-      metadata: { 'http.method': 'POST', 'http.route': '/api/assistant' },
+      metadata: {
+        'http.method': 'POST',
+        'http.route': '/api/assistant',
+        'user.resolved': true,
+      },
     },
     async (trace) => {
       const { messages, query } = (await request.json()) as {
         messages?: AssistantQaTurn[]
         query?: string
       }
+
+      // Phase 6：Delivery 负责身份解析；Domain 永远不读 cookie/header/session。
+      const userId = resolveCurrentUserId(request)
 
       trace.addMetadata({ 'assistant.messageCount': messages?.length ?? 0 })
 
@@ -38,7 +50,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const result = await getAssistantReplyUseCase().execute({ messages, query }, { trace })
+        const result = await getAssistantReplyUseCase().execute({ messages, query }, { trace, userId })
         trace.end('ok', {
           metadata: { 'http.status': 200, 'assistant.wordFound': result.wordData !== null },
         })

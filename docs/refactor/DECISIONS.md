@@ -432,3 +432,100 @@ Phase 5 建立项目**第一个应用级 Trace 系统**，并固定以下长期�
   业务行为、日志分类与控制流不变。
 - Trace 持久化、metrics 聚合、prompt/output opt-in 捕获、`AICallMeta` 按类型拆分计数
   均列为延后工作（`TRACE_DESIGN.md` §13 / §14）。
+
+---
+
+## ADR-014: 持久化 User State + Memory 契约（Phase 6）
+
+**日期:** 2026-09-13
+**状态:** Accepted（Phase 6 已于 2026-09-14 经外部最终复审 v3 **Approved**；
+B-01–B-05 全部 resolved and accepted；Phase 7 Release Decision = Approved after administrative closeout）
+
+**决定:**
+
+Phase 6 建立项目**第一个持久化用户态基础设施**，并固定以下长期契约
+（详细设计见 `docs/refactor/MEMORY_DESIGN.md`）：
+
+1. **四个概念显式分离**：User State（canonical 当前事实，`User` + `UserProfile`） /
+   Memory（持久历史上下文，`UserMemory`） / Chat-Event History（原始交互，**不落库、永不自动成为记忆**） /
+   Working-Request Context（单次执行，`ExecutionContext`，不持久化）。
+2. **身份用显式 `UserId` 抽象，不做认证**：Application 只使用 `type UserId = string`；
+   Domain 不读 cookie / header / session；需要归属的 Repository 方法必须接受 `userId`；
+   Delivery/Composition 边界用**过渡性确定性默认用户**（`DEFAULT_USER_ID = 'local-default-user'`，
+   `src/bootstrap/identity.ts`）承载新状态。
+   **B-01（v1 外部复核修正）**：受用户归属约束的 Application 操作，权威归属身份只能来自
+   `ExecutionContext.userId`；操作 payload 不携带 `userId`；缺失/非法 → `invalid_input`
+   （Application 不回落默认用户）。
+   未来接入真实认证时，路径是 external identity → identity boundary → **可能的映射** →
+   internal `UserId`（须满足 `normalizeUserId` 的字符集/长度约束）。**不得**声称只需改动
+   `identity.ts` 一个文件。**不引入** Auth.js / Clerk / OAuth / 账号管理。
+3. **架构边界不变**：`UserRepositoryPort` / `MemoryRepositoryPort` 定义在 Application，
+   Prisma 实现只在 Infrastructure，Domain 只含纯规则（归一化、闭集、边界、去重键）。
+   端口表达应用需求（"按含义键 create-or-update"、"有界选取"），**不是**通用 CRUD。
+4. **记忆写入是显式且确定性的**：唯一入口 `RememberUserFactUseCase`；
+   `source` 闭集 `explicit_user | deterministic`；`kind` 闭集
+   `preference | goal | weakness | milestone`；内容 ≤ 500 字符（**拒绝**超长而非截断）。
+   **不存在**"每条消息 → 自动存为记忆"的路径；Phase 6 也**不**新增写入 Route。
+5. **记忆读取有界且确定性**：`userId` → 可选 kind → `updatedAt desc, id asc` → `take limit`；
+   默认 5 条、硬上限 20 条；**不做** RAG / 向量 / 语义检索（延后）。
+   **B-03（v1 外部复核修正）**：`memoryKinds` 省略 = 有意不过滤；非数组 / 空数组 / 全部非法
+   → `invalid_input`；混合非法项 → 使用合法子集。非法收窄请求**永不**扩大为 select-all。
+   **B-05（v2 外部复核修正）**：`MemoryRepositoryPort` 层语义显式统一为
+   `undefined` = 不限制、非空 = 限制、**`[]` = 返回零条**；`PrismaMemoryRepository`
+   在空收窄时先返回 `[]` 且不执行 `findMany`，与 `FakeMemoryRepository` 语义一致。
+   这是 Application 边界之外的第二道防线。
+6. **去重身份 = `(userId, kind, normalizedKey)`**：由 `@@unique([userId, kind, key])` +
+   upsert 共同保证；`key` 在 Domain 归一化（大小写/空白/`-`/`:`/`.` 收敛为 `_`），
+   因此同一含义的偏好不会累积成成百条记录。`preference` / `goal` / `weakness` 为单槽（覆盖更新），
+   `milestone` 用事件唯一键（追加型，同键重放幂等）。
+   **B-02（v1 外部复核修正）**：canonical profile 语义键（至少
+   `english_level` / `explanation_language`，含归一化变体）**保留给 User State**；
+   Memory 写入命中保留键 → `invalid_input`，不落库。同一语义当前事实只有一个权威归属。
+7. **Memory 注入 LLM 时是数据而非权威**：真实的 profile / memory **内容**作为
+   **独立的 `user` 角色数据消息**注入（**不**拼接进 system prompt），用显式分隔标记包裹，
+   渲染前折叠为单行并中和方括号（防伪造结束标记），逐条 ≤ 200 字符、整段 ≤ 1500 字符。
+   **B-04（v1 外部复核修正）**：处理 learner context 的**静态策略**位于 **system 权威**，
+   且仅在本次请求存在 learner context 时追加；策略本身不含用户数据。这是
+   defense-in-depth / authority separation，不声称让 prompt injection 不可能。
+8. **失败语义按产品语义区分**：读路径（profile / memory）失败 → **优雅降级**
+   （记 `degraded`，以空上下文继续，请求不失败）；显式写路径失败 → **必须报错**
+   （`invalid_input` / `persistence_failed`）。
+9. **Prisma 变更是纯增量的，且已被任务书授权**：新增 `User` / `UserProfile` / `UserMemory`
+   三张表 + `@@unique([userId, kind, key])` + `@@index([userId, kind])` + 两个外键；
+   **不**修改既有 7 张表的语义、**不**迁移既有数据归属、**不**对生产库执行迁移。
+   `CLAUDE.md` / `ARCHITECTURE_RULES.md` EXT-003 的"schema 冻结需授权"约束由本次 Phase 6
+   任务书 Part 13 明确授权满足，授权范围仅限上述三张新表。
+   **部署门禁（v1 外部复核 non-blocking note A）**：
+   `prisma/migrations/20260609000001_baseline/migration.sql` 是 Phase 6 之前的损坏历史迁移
+   （UTF-16 PowerShell 错误转储）。Phase 6 新增迁移在单独看时合法，但**完整迁移链的生产部署
+   在历史迁移链被独立验证/修复之前保持 BLOCKED**；不得声称 deployment-ready。
+10. **legacy 用户化债务显式延后**：`WordReview`（含 `@@unique([wordId])`）、
+    `Article.readAt/favoritedAt`、`ListeningScene.playedAt`、`DailyProgress`、
+    localStorage 偏好均**不**在本阶段迁移（清单见 `MEMORY_DESIGN.md` §17）。
+11. **隐私与可观测性延续 Phase 5 的 metadata-first**：trace 只记录计数 / 布尔 / 尺寸
+    （`userContext.*` / `memory.selectedCount` / `memory.contentChars` …），
+    **不**记录记忆内容、profile 值、用户消息，并且**不**记录 `userId` 本身。
+12. **参考集成保持行为保真**：`POST /api/assistant` 的个性化依赖为**可选**，
+    且需要 `ExecutionContext.userId`；两者缺一或用户无任何 profile/memory 时，
+    消息数组与迁移前逐字节一致（Phase 3 既有测试无需修改即仍然通过）。
+
+**理由:**
+
+- Phase 5 结束时项目已经具备统一 AI Client（Phase 3）、Content Pipeline 样板（Phase 4）与
+  显式 `ExecutionContext` 传播（Phase 5），因此可以在**不改动**这三条已批准基线的前提下
+  接入"用户身份 → 有界上下文 → 既有 prompt → AI Client"这一条纵向链路。
+- 仓库历史上完全没有身份概念，且所有学习进度表都是"全局单份"（`WordReview.@@unique([wordId])`）。
+  若不先建立显式的 `userId` 抽象，Phase 7 的 Agent 会直接在"隐含单用户"的假设上生长。
+- 若不在本阶段固定"写入是显式的 / 选择是有界的 / 注入是数据 / 读降级写失败"，
+  后续每个模块都会各自发明记忆语义，把记忆系统变成不受控的对话转储。
+
+**后续影响:**
+
+- 任何新增的记忆写入必须经过 `RememberUserFactUseCase`；新增来源种类属**显式契约变更**。
+- 任何新增的上下文注入必须沿用三层上限（条数 / 单条 / 整段），并保持"数据非指令"的注入形态。
+- 新增 trace 元数据必须遵守 Phase 5 的禁用键集合（`TRACE_DESIGN.md` §11）；
+  用户态数据只允许计数与尺寸。
+- 多用户化 = 重写 `resolveCurrentUserId()` 的身份边界（external identity → 可能的映射 →
+  internal `UserId`）；`User` / `UserProfile` / `UserMemory` 的表结构不需要改变，但
+  **不保证**只改动单个文件（见第 2 条）。
+- Phase 7 若需要语义检索或 LLM 自主记忆，必须作为独立阶段设计与授权（不在本 ADR 范围内）。

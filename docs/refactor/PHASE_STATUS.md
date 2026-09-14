@@ -15,9 +15,31 @@
   `docs/refactor/tasks/phase-5-task.md`，设计见 `docs/refactor/TRACE_DESIGN.md`，
   交接见 `docs/refactor/handoffs/phase-5-handoff.md`，审核轨迹见
   `docs/refactor/reviews/phase-5-review.md`（v1 Changes Requested → v2 Changes Requested → **v3 Approved**）
-- **下一阶段：Phase 6 — Ready / Not Started**
-  （可在 Phase 5 已批准的 `TracePort` / `ExecutionContext` / `TraceScope` 生命周期契约之上工作；
-  **本会话不启动 Phase 6**）
+- **Phase 6 — ✅ Completed / Approved（2026-09-14 外部最终复审 v3 通过；Blocking Issues: None）**
+  审核轨迹：v1 **Changes Requested**（Phase 7 Not Approved）→ v2 **Minor Changes Requested**
+  （B-01–B-04 接受为已解决；新增 B-05）→ v3 **✅ Approved**（B-05 接受为已解决；
+  Phase 7 Release Decision = **Approved after administrative closeout**）。完整历史见
+  `docs/refactor/reviews/phase-6-review.md`。
+  在 Phase 5 已批准的 `TracePort` / `ExecutionContext` / `TraceScope` 生命周期契约之上，
+  引入了**持久化的用户状态 + 记忆**基础设施（`User` / `UserProfile` / `UserMemory`），
+  并以已批准的 Phase 3 `POST /api/assistant` 作为唯一参考集成证明
+  "身份 → 有界上下文读取 → 既有 prompt → AIClientPort"。
+  已批准不变式要点：`ExecutionContext.userId` 为权威归属（B-01）；canonical profile 语义键
+  保留给 User State、不得写成 Memory（B-02）；非法 `memoryKinds` 过滤绝不扩大为 select-all，
+  且 Port 层 `[]` = 零结果（B-03 / B-05）；learner-context 静态处理策略位于 system 权威、
+  内容仍在独立 user 数据消息内（B-04）。
+  任务定义：`docs/refactor/tasks/phase-6-task.md`；设计文档：`docs/refactor/MEMORY_DESIGN.md`；
+  决策：`DECISIONS.md` ADR-014；交接：`docs/refactor/handoffs/phase-6-handoff.md`；
+  审核记录：`docs/refactor/reviews/phase-6-review.md`。
+  ✅ 最终验证：40 files / **544 tests passed**（Phase 2 95 + Phase 3 89 + Phase 4 108 +
+  Phase 5 150 + Phase 6 **102**）；受保护基线 442 全绿。
+  ✅ 基线已提交（`feat: establish durable user state and memory baseline`）；临时审核 ZIP 已删除。
+  Phase 7 交接规则：Phase 6 的保留键机制只覆盖 Domain 当前已知的 canonical 语义
+  （`english_level` / `explanation_language` 及归一化变体）；Phase 7 的 Agent/tool 设计**不得**
+  用同义 Memory 键绕过 canonical User State 所有权，修改 canonical 事实必须走 profile/state 操作。
+  已知部署门禁：`prisma/migrations/20260609000001_baseline/migration.sql` 是 Phase 6 之前的
+  损坏历史迁移（UTF-16 PowerShell 错误转储）；**完整迁移链的生产部署在独立修复前保持 BLOCKED**。
+- **当前阶段：Phase 7 — Ready / Not Started**（需用户明确批准后启动；必须先复用 Phase 2–6 受保护基线）
 
 ### 上一阶段（Phase 3）归档
 
@@ -315,20 +337,74 @@ Phase 4 已预留的 `ReadingPipelineEvent` 操作员事件流保持不变，Tra
 
 ## Phase 6：用户状态与记忆系统
 
-**状态:** Ready / Not Started（Phase 5 已于 2026-09-13 通过外部审核并完成行政收尾；
-启动需用户明确批准；**本会话不启动 Phase 6**）
+**状态:** ✅ **Completed / Approved**（2026-09-14 外部最终复审 v3 通过：Review Status = Approved，
+Blocking Issues: None，Phase 7 Release Decision = Approved after administrative closeout）
+**目标:** 引入持久化 User State + Memory 基础设施（`User` / `UserProfile` / `UserMemory`），
+以 Phase 3 `/api/assistant` 为唯一参考集成证明"身份 → 有界 profile/memory 读取 → 既有 prompt → AIClientPort"；
+**不是** Agent、**不是** RAG、**不是**向量记忆、**不是**完整认证
+**任务定义:** `docs/refactor/tasks/phase-6-task.md`
+**设计文档:** `docs/refactor/MEMORY_DESIGN.md`
 **可依赖的 Phase 5 已批准基线:** `TracePort` / `ExecutionContext` / `runInTrace` `runInSpan`（生命周期安全）/
 `TracedAIClient`（AI 调用可观测性装饰器）/ fail-open 的 Trace recorder 行为；
 Domain 必须保持无 Trace 依赖；trace 持久化与外部可观测性平台仍延后
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**开始日期:** 2026-09-13
+**实现完成日期:** 2026-09-13
+**完成日期:** 2026-09-14
+**审核:** ✅ 通过（v1 Changes Requested → v2 Minor Changes Requested → **v3 Approved**；
+B-01–B-05 全部 resolved and accepted；Blocking Issues: None）
+
+### 实现产出
+
+- Domain：`src/domain/user/{types,identity-rules,profile-rules}.ts`、
+  `src/domain/memory/{types,memory-rules}.ts`（纯规则：闭集、归一化、有界、去重键）
+- Application Ports：`src/application/ports/{user-repository,memory-repository}.ts`
+- Application 用例：`src/application/use-cases/user/{get-user-context,update-learning-profile,remember-user-fact}.use-case.ts`
+- Application Prompt：`src/application/prompts/assistant/personal-context.prompt.ts`（数据段渲染 + 注入防护）
+- Infrastructure：`src/infrastructure/db/{user.repository,memory.repository}.ts`（Prisma 适配器 + 纯映射函数）
+- Composition / Delivery：`src/bootstrap/{identity,user-state-composition}.ts`、
+  `src/bootstrap/index.ts`（装配参考集成）、`src/app/api/assistant/route.ts`（最小身份解析）
+- Phase 5 加法扩展：`src/application/observability/execution-context.ts`（新增可选 `userId`）
+- Prisma：`prisma/schema.prisma` 新增三个模型（**仅新增**）、
+  `prisma/migrations/20260913000001_add_user_state_and_memory/migration.sql`（纯增量、非破坏性）
+- 决策：`DECISIONS.md` ADR-014
+- 新增测试：**12 个文件 / 102 个测试**（v1 为 11/77；v1 复核修正 +1 文件，v2 的 B-05 +3 tests）
+- v1/v2 复核修正新增：`src/application/use-cases/user/ownership.ts`（B-01 权威归属）、
+  `src/application/use-cases/user/__tests__/canonical-ownership.test.ts`（B-02 端到端）、
+  `MemoryRepositoryPort` / `PrismaMemoryRepository` 的 B-05 空 kinds 语义与测试
+
+### 回归结果
+
+| 检查 | 结果 |
+|------|------|
+| `npx vitest run` | ✅ 40 files / **544 tests passed**（Phase 2 95 + Phase 3 89 + Phase 4 108 + Phase 5 150 + Phase 6 102） |
+| Phase 2 / 3 / 4 / 5 受保护基线 | ✅ 全部保留并通过 |
+| `npx tsc --noEmit` | ✅ 0 errors |
+| `npx next build` | ✅ 通过（41 routes，33/33 静态页面，2 条既有警告） |
+| Prisma | ✅ `prisma validate` 通过（exit 0）；`prisma generate` 成功（exit 0，生成物在 `.gitignore` 内） |
+| ESLint（Phase 6 范围） | ✅ 0 errors / 0 warnings（domain / application / infrastructure / bootstrap / tests / 被改 Route） |
+| `npx eslint src/` 全量 | ✅ 既有历史基线不变：35 errors / 36 warnings（问题文件中**无** Phase 6 文件） |
+| HTTP 冒烟（等价端口） | ✅ 14 passed / 0 failed / 0 skipped |
+| 真实外部调用 | ✅ 无真实 DeepSeek 调用；无真实 RSS 调用；未对生产库执行迁移或写入。（`next build` 使用普通网络访问 Google Fonts，属正常构建依赖，不改变上述结论。） |
+| 生产行为变化 | 无 profile/memory 时与迁移前逐字节一致；有上下文时仅**追加**一条 user 数据消息 |
+
+### 审核方需确认的重点
+
+1. 记忆写入是否确实"显式且确定性"（没有消息级自动写入；source/kind 闭集）。
+2. 读取是否确实有界（条数 / 单条 / 整段三层上限），且无记忆时行为保真。
+3. 身份策略是否满足"Domain 不读 cookie/header/session"且过渡默认用户被如实标注。
+4. Prisma 变更是纯增量且未对生产库执行；既有 7 张表语义未变。
+5. Trace 是否只记录元数据（无记忆内容 / profile 值 / 用户标识）。
+6. prompt 注入处理（独立 user 数据消息 + 分隔标记 + 方括号中和）是否足够。
 
 ---
 
 ## Phase 7：学习路径 Agent
 
-**状态:** Not Started
+**状态:** Ready / **Not Started**（前置条件已满足：Phase 6 Completed / Approved；需用户明确批准后启动）
+**可依赖的已批准资产:** `ExecutionContext.userId` 权威身份、`UserRepositoryPort` /
+`MemoryRepositoryPort`、`GetUserContextUseCase` / `UpdateLearningProfileUseCase` /
+`RememberUserFactUseCase`、有界确定性 Memory 选择、canonical State vs Memory 所有权、
+Assistant learner-context 集成、Phase 5 Trace 基础设施（见 `handoffs/phase-6-handoff.md` §9）
 **开始日期:** —
 **完成日期:** —
 **审核:** ⏳

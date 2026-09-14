@@ -8,6 +8,7 @@ import { AIClient } from '@/infrastructure/ai/ai-client'
 import { DeepSeekAdapter } from '@/infrastructure/ai/adapters/deepseek.adapter'
 import { PrismaWordLookup } from '@/infrastructure/db/word-lookup'
 import { prisma } from '@/lib/prisma'
+import { getUserContextUseCase } from '@/bootstrap/user-state-composition'
 
 /**
  * 装配 `POST /api/assistant` 所需的应用入口。
@@ -22,7 +23,13 @@ export function createAssistantReplyUseCase(): ReplyToAssistantQueryUseCase {
   const aiClient = new AIClient({ adapter })
   const wordLookup = new PrismaWordLookup(prisma)
 
-  return new ReplyToAssistantQueryUseCase({ aiClient, wordLookup })
+  // Phase 6：参考集成始终装配用户上下文读取（有界 profile + memory）。
+  // 若目标用户没有任何 profile/memory，注入内容为空 → prompt 与迁移前逐字节一致。
+  return new ReplyToAssistantQueryUseCase({
+    aiClient,
+    wordLookup,
+    getUserContext: getUserContextUseCase(),
+  })
 }
 
 let assistantReplyUseCase: ReplyToAssistantQueryUseCase | undefined

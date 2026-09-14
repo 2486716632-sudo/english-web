@@ -116,3 +116,48 @@ model ArticleVocab {
   addedToReview   Boolean  @default(false)
   article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6 — durable User State + Memory
+//
+// 最小增量：只新增三张表，不修改任何既有模型/表语义、不迁移既有数据归属。
+// 详见 docs/refactor/MEMORY_DESIGN.md 与 docs/refactor/tasks/phase-6-task.md。
+// ---------------------------------------------------------------------------
+
+/// 稳定逻辑身份。id 即 UserId（不透明字符串，Domain 只把它当标识）。
+model User {
+  id        String       @id
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  profile   UserProfile?
+  memories  UserMemory[]
+}
+
+/// 可变 canonical 学习档案（user state）。与历史性的 UserMemory 刻意分离。
+/// 每个字段都必须有真实消费者（参考集成把它们渲染进 learner context 数据段）。
+model UserProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  englishLevel        String?
+  explanationLanguage String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// durable Memory：有界、结构化、以 (userId, kind, key) 作为去重身份。
+/// 刻意不加 importance / confidence / status / embedding：Phase 6 没有它们的消费者。
+model UserMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String   // preference | goal | weakness | milestone
+  key       String   // 归一化后的稳定"含义键"
+  content   String   // 有界短文本（≤ 500 字符，由 Domain 校验）
+  source    String   // explicit_user | deterministic
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, key])
+  @@index([userId, kind])
+}

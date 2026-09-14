@@ -2,12 +2,24 @@
 // @last-reviewed 2026-09-12
 // @layer Application — Use Case（参考迁移）
 
-import type { AIClientPort } from '@/application/ports/ai-client'
+import type { AIClientPort, AIMessage } from '@/application/ports/ai-client'
 import type { WordCard, WordLookupPort } from '@/application/ports/word-lookup'
-import { resolveTraceScope, type ExecutionContext } from '@/application/observability/execution-context'
+import {
+  resolveTraceScope,
+  resolveUserId,
+  type ExecutionContext,
+} from '@/application/observability/execution-context'
 import { runInSpan } from '@/application/observability/trace-helpers'
 import { withAITracing } from '@/application/observability/traced-ai-client'
 import { buildAssistantQaPrompt, type AssistantQaTurn } from '@/application/prompts/assistant/qa.prompt'
+import {
+  applyLearnerContextSystemPolicy,
+  buildAssistantLearnerContext,
+  type LearnerContextBlock,
+} from '@/application/prompts/assistant/personal-context.prompt'
+import type { TraceScope } from '@/application/ports/trace'
+import type { GetUserContextUseCase } from '@/application/use-cases/user/get-user-context.use-case'
+import { MEMORY_SELECTION_LIMIT } from '@/domain/memory/memory-rules'
 
 /**
  * ReplyToAssistantQueryUseCase — `POST /api/assistant` 的应用入口。
@@ -56,6 +68,14 @@ export interface AssistantReplyResult {
 export interface ReplyToAssistantQueryDeps {
   aiClient: AIClientPort
   wordLookup: WordLookupPort
+  /**
+   * 可选：用户上下文读取（Phase 6 参考集成）。
+   *
+   * 未提供 → **完全不做个性化**，system prompt 与消息数组与迁移前逐字节一致
+   * （因此 Phase 3 既有测试无需修改即仍然通过）。
+   * 生产路径由 Composition Root 始终提供（见 `bootstrap/index.ts`）。
+   */
+  getUserContext?: GetUserContextUseCase
 }
 
 /**
@@ -104,13 +124,35 @@ export class ReplyToAssistantQueryUseCase {
             )
           : null
 
+      // Phase 6：有界 learner context（附加数据，不是 Assistant 工作的必要条件）。
+      const learnerContext = await this.loadLearnerContext(context, span)
+
       const prompt = buildAssistantQaPrompt({ turns: input.messages, wordCard: wordData })
+
+      // B-04：仅当存在 learner context 时，把**静态处理策略**放到 system 权威；
+      // 真实 profile / memory 内容仍然只在下面的 user 数据消息里。
+      // 没有 learner context 时 system prompt 与 Phase 3 完全一致（逐字节）。
+      const systemContent = applyLearnerContextSystemPolicy(
+        prompt.system,
+        learnerContext !== null,
+      )
+
+      const messages: AIMessage[] = [{ role: 'system', content: systemContent }]
+      if (learnerContext) {
+        // 作为**独立 user 数据消息**注入（不是 system 权威），并在 trace 上只记录计数。
+        messages.push({ role: 'user', content: learnerContext.text })
+        span.addMetadata({
+          'memory.includedCount': learnerContext.includedCount,
+          'memory.truncated': learnerContext.truncated,
+        })
+      }
+      messages.push(...prompt.messages)
 
       // AI span 由装饰器产生：provider / model / attempts / usage / finishReason / 错误码。
       const aiClient = withAITracing(this.deps.aiClient, span)
 
       const result = await aiClient.chat({
-        messages: [{ role: 'system', content: prompt.system }, ...prompt.messages],
+        messages,
         temperature: ASSISTANT_AI_TEMPERATURE,
         maxTokens: ASSISTANT_AI_MAX_TOKENS,
         timeoutMs: ASSISTANT_AI_TIMEOUT_MS,
@@ -122,6 +164,34 @@ export class ReplyToAssistantQueryUseCase {
       span.addMetadata({ 'assistant.wordFound': wordData !== null })
 
       return { reply: result.content, wordData }
+    })
+  }
+
+  /**
+   * 读取有界 learner context 并渲染成数据段。
+   *
+   * 行为保真（任务文档 Part 10）：没有依赖、没有 `userId`、或没有任何可用上下文时，
+   * 返回 `null`，调用方不注入任何内容 —— 与迁移前完全一致。
+   * 读取失败已在 `GetUserContextUseCase` 内部降级为"空上下文"（不抛出）。
+   */
+  private async loadLearnerContext(
+    context: ExecutionContext,
+    span: TraceScope,
+  ): Promise<LearnerContextBlock | null> {
+    const getUserContext = this.deps.getUserContext
+    if (!getUserContext) return null
+
+    const userId = resolveUserId(context)
+    if (!userId) return null
+
+    const userContext = await getUserContext.execute(
+      { memoryLimit: MEMORY_SELECTION_LIMIT },
+      { trace: span, userId },
+    )
+
+    return buildAssistantLearnerContext({
+      profile: userContext.profile,
+      memory: userContext.memory.map((item) => ({ kind: item.kind, content: item.content })),
     })
   }
 }
