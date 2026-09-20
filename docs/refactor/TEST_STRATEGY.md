@@ -188,7 +188,17 @@ npx vitest run
 | Phase 4（Pipeline 重构） | `sm2.test.ts`, `utils.test.ts` | SM-2 和工具函数行为不变 |
 | Phase 4（Route 薄化） | `api-smoke.sh` | API 端点可达性不变 |
 | Phase 6（记忆系统） | `word-cache.test.ts` | 缓存行为可能需兼容新记忆系统 |
-| Phase 10（可靠性 / 测试加固） | 所有现有测试 | 全部通过 + 补充新测试 |
+| Phase 10（Reliability, Ownership & Evaluation Platform Convergence） | 所有现有测试 | 全部通过 + 补充新测试 + 建立评估 harness / golden-set 约定 |
+| Phase 11（Coach 重构） | Coach 相关测试 | 行为保持 + 确定性 Coach 评估基线 |
+| Phase 12（检索工程） | 检索评估数据集 | baseline vs candidate 检索对比 + 架构决策 |
+| Phase 13（Agent 工具系统） | Agent / tool 评估 | 相对确定性基线的对照评估 |
+| Phase 15（生产与作品集） | 全部 | 汇总基准 / 实验报告；复验迁移与部署 |
+
+> **2026-09-20 补充（第二次路线修订 — 已批准 / 生效）。** 评估已被提升为
+> **系统级跨领域能力**（ADR-017，**Accepted**；2026-09-20 外部评审 Approved）：
+> 本文件仍拥有测试分层与运行命令；**评估 / 实验的证据契约**归
+> `PORTFOLIO_ENGINEERING_CRITERIA.md`。golden set / fixture 约定的**基础设施**在 Phase 10 建立，
+> 供 Phase 11–13 复用。
 
 ### 关键风险
 

@@ -234,7 +234,7 @@ DeepSeekAdapter(env: DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL)
 - 手动构造，**不引入 DI 框架**（TARGET_ARCHITECTURE §17.3）。
 - 进程内惰性单例，避免每个请求重建客户端。
 - 环境变量的读取只发生在 Composition Root 与 adapter 构造处，Route 与 Use Case 不感知 provider 配置。
-- 未配置 `DEEPSEEK_API_KEY` 时不新增 pre-flight 校验（保持迁移前的错误面）；安全边界加固属 Phase 13（2026-09-16 路线重新基线前的编号为 Phase 9）。
+- 未配置 `DEEPSEEK_API_KEY` 时不新增 pre-flight 校验（保持迁移前的错误面）；这些**基础**安全 / 授权边界（缺失 API Key 的 pre-flight 校验、CORS、auth）由 **Phase 10** 建立 / 修复，**Phase 15 只做生产级复验与最终加固**（2026-09-20 第二次路线修订，已批准 / 生效；Phase 15 此前编号为 Phase 13 / Phase 9）。**Phase 15 不得成为这些基础控制的首次实现点。**
 
 ## 12. 测试策略
 
@@ -285,7 +285,7 @@ DeepSeekAdapter(env: DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL)
 | D4 | `words/themes/generate` 三步内联 pipeline → Workflow | Phase 4（Workflow 样板） |
 | D5 | Token / 延迟持久化与 Trace 传播 | Phase 5 |
 | D6 | Prisma 单例搬迁至 `infrastructure/db/` | Phase 6 |
-| D7 | 未配置 API Key 的 pre-flight 校验、CORS/鉴权 | Phase 13 安全边界加固 |
+| D7 | 未配置 API Key 的 pre-flight 校验、CORS/鉴权 | **Phase 10** 建立基础安全 / 授权边界（2026-09-20 第二次路线修订，已批准 / 生效）；Phase 15 只做生产级复验与最终加固，**不得**首次实现 |
 | D8 | `AIRequestOptions` 的降级策略（TBD-2） | 需要真实用例后再定，暂不引入 |
 
 ---

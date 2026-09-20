@@ -1,14 +1,20 @@
 # Migration Plan — English Learning PWA
 
 **日期:** 2026-07-29 (修正版)
-**状态:** 定稿（基于 Phase 1 架构设计）；**Phase 7 及以后已于 2026-09-16 重新基线**
+**状态:** 定稿（基于 Phase 1 架构设计）；**Phase 7 及以后已于 2026-09-16 重新基线**。
+**2026-09-20 第二次路线修订（作品集级工程要求 + 重建 Phase 11 之后路线）已于 2026-09-20
+经外部评审 Approved（Blocking Issues: None）并生效**（该修订此前以提案状态送审）；
+其 Phase 10–15 文本现为已生效的权威迁移路径
 
 **归属:** 本文件拥有渐进迁移路径。Phase 路线图与核心原则归 `docs/refactor/MASTER_PLAN.md`，
 阶段状态与批准历史归 `docs/refactor/PHASE_STATUS.md`，已接受决策归 `docs/refactor/DECISIONS.md`。
 
 > **历史边界。** Phase 2–6 章节是**已批准的历史迁移记录**，保持原样，不因未来计划变化而改写。
 > **Phase 7 及以后的迁移路径由 post-Phase-6 路线重新基线确定**
-> （2026-09-16；见 `DECISIONS.md` ADR-015 / ADR-016）。
+> （2026-09-16；见 `DECISIONS.md` ADR-015 / ADR-016）。**2026-09-20 的第二次路线修订已于
+> 2026-09-20 经外部评审 Approved 并生效**（此前以提案状态送审），见 `DECISIONS.md`
+> ADR-017 / ADR-018（`Accepted`）与 `docs/refactor/PORTFOLIO_ENGINEERING_CRITERIA.md`
+> （`生效 / Active`）。
 
 ---
 
@@ -47,13 +53,17 @@ Phase 8  ─→  Vocabulary Books 实现（先解除迁移链前置阻塞，再�
    │
 Phase 9  ─→  Themed Packs 收敛
    │
-Phase 10 ─→  可靠性、归属与架构收敛
+Phase 10 ─→  可靠性、归属与评估平台收敛（评估 / 实验基础设施）
    │
-Phase 11 ─→  AI Coach 基础重构
+Phase 11 ─→  AI Coach 基础重构（并建立确定性 Coach 评估基线）
    │
-Phase 12 ─→  Agentic AI Coach
+Phase 12 ─→  检索与知识工程（设计、实现并评估检索层；RAG 是否进生产由证据决定）
    │
-Phase 13 ─→  生产与作品集加固
+Phase 13 ─→  Agentic AI Coach 与工具系统（相对确定性基线做对照评估）
+   │
+Phase 14 ─→  MCP 互操作、AgentOps 与硬化（安全边界已在 Phase 12 / 13 内建立）
+   │
+Phase 15 ─→  生产、基准与作品集加固
 ```
 
 ---
@@ -220,7 +230,7 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 - 若判定**应当拆分**：在 **Phase 8 实现开始之前**重新拆分路线图（走任务书 + 外部审核 + 用户批准），
   本次修订**不预先新增 Phase 编号**。
 - 无论是否拆分，**迁移链修复 / schema 变更所在的那个已批准 Phase 必须自行通过迁移正确性验收**
-  （见 `EVALUATION_BASELINE.md` 的迁移验证门），不得把首次验证推迟到 Phase 13。
+（见 `EVALUATION_BASELINE.md` 的迁移验证门），不得把首次验证推迟到 Phase 15。
 
 ### 不涉及
 
@@ -252,7 +262,7 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 | P8-05 | 选书体验 | 用户可选择的词书入口 |
 | P8-06 | 保持已验证的 SM-2 行为 | Phase 2 受保护基线不得放宽 |
 | P8-07 | 跨词书重叠词的处理 | 同一 `Word` 出现在多本词书时的行为必须有明确语义 |
-| P8-08 | **迁移正确性与可复现性验收门（本阶段内）** | 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，就必须在同一阶段用真实数据库验证迁移正确性与可复现性；**不得**推迟到 Phase 13 |
+| P8-08 | **迁移正确性与可复现性验收门（本阶段内）** | 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，就必须在同一阶段用真实数据库验证迁移正确性与可复现性；**不得**推迟到 Phase 15 |
 
 ---
 
@@ -276,11 +286,13 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 
 ---
 
-## Phase 10：Reliability, Ownership & Architecture Convergence
+## Phase 10：Reliability, Ownership & Evaluation Platform Convergence
 
 ### 目标
 
-处理剩余的遗留归属缺口、加深真实测试覆盖、改善 CI，并加固安全 / 授权边界。
+处理剩余的遗留归属缺口、加深真实测试覆盖、改善 CI、加固安全 / 授权边界，并建立
+**项目级评估 / 实验基础设施**——使后续 Retrieval 与 Agent 阶段的可比较测量在
+**工程上可行**，而不是事后补做。
 
 ### 预期方向
 
@@ -288,13 +300,36 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 |---|------|------|
 | P10-01 | 剩余 learner ownership 缺口 | 例如 `Article.readAt/favoritedAt`、`ListeningScene.playedAt`、`DailyProgress`、localStorage 偏好 |
 | P10-02 | 真实数据库 / 集成 / E2E 测试 | 用隔离数据库 + Playwright，而非脚本化冒烟 |
-| P10-03 | CI 加固 | 把类型检查 / 测试 / lint / build 纳入可重复的门禁 |
+| P10-03 | CI 质量门禁 | 把类型检查 / 测试 / lint / build 纳入可重复的门禁 |
 | P10-04 | 安全与授权边界 | 输入验证、鉴权、CORS、未配置 API Key 的 pre-flight 校验 |
-| P10-05 | 有理由的遗留收敛 | 只在有真实理由时收敛遗留代码 |
+| P10-05 | 有理由的遗留架构收敛 | 只在有真实理由时收敛遗留代码 |
+| P10-06 | **评估 harness 基础设施** | 可复用的 golden-set / fixture 运行器与报告约定，供后续 Phase 复用 |
+| P10-07 | **golden-set / fixture 约定** | 固定评估数据集的组织、命名、版本与不变量 |
+| P10-08 | **实验记录约定** | Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Limitation → Decision |
+| P10-09 | **生产风格 trace / metrics 导出策略** | 在 Phase 5 已批准 Trace 之上，明确持久化 / 聚合 / 导出的**策略与边界**（具体实现按需） |
+| P10-10 | **延迟 / 错误 / token / 成本测量约定** | 统一可测量的调用指标口径，供 Retrieval / Agent 对比 |
+
+### 范围 / 拆分决策门（R-03，本阶段内）
+
+加强后的 Phase 10 同时承担两条**互相独立的高风险工作流**：
+
+- **A. Reliability / Ownership / Architecture convergence**（P10-01…P10-05）；
+- **B. Evaluation Platform foundation**（P10-06…P10-10）。
+
+> Phase 10 must determine whether (A) Reliability / Ownership / Architecture convergence and
+> (B) Evaluation Platform foundation can safely remain one bounded Phase. If they are
+> independently reviewable high-risk workstreams, the roadmap must be split before Phase 10
+> implementation starts. Phase numbering is not protected; bounded scope and reviewability
+> take priority.
+
+该判定由 **Phase 10 的已批准任务书 / 外部评审**产出（本次修订不新增 Phase 编号、不预先拆分）；
+若判定应拆分，则在 Phase 10 实现开始前走正常治理流程后拆分。
 
 ### 不涉及
 
 - ❌ 不做机会主义式的大范围重写
+- ❌ **不**在本阶段构建最终 Agent（本阶段的目的是让**后续 AI 实验可测量**）
+- ❌ **不**在本修订中预先拆分 Phase 10（拆分由上述决策门判定）
 
 ---
 
@@ -302,7 +337,9 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 
 ### 目标
 
-在引入任何高级 Agent 基础设施**之前**，先把既有 AI Coach 重构到已批准架构。
+在引入任何高级 Agent 基础设施**之前**，先把既有 AI Coach 重构到已批准架构，
+并产出**确定性 Coach 评估基线**，供 Phase 12（检索）与 Phase 13（Agent）对比。
+**原则不变：先重构 Coach，再 Agent 化 Coach。**
 
 ### 预期方向
 
@@ -313,53 +350,207 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 | P11-03 | 遗留直连模型调用迁移 | 经已批准的 `AIClientPort` 路径 |
 | P11-04 | 过大的 UI / Application 职责拆分 | 按职责分解，不改变产品行为 |
 | P11-05 | 保持当前 Coach 行为可用 | 重构期间行为保持；不再依赖「冻结」作为唯一保护 |
+| P11-06 | **显式 Tool 契约 / 能力边界（若有用）** | 在有意义处定义清晰的 capability 边界，供后续阶段复用 |
+| P11-07 | **Coach 评估数据集 / golden set** | 建立确定性 Coach 基线数据集 |
+| P11-08 | **确定性基线测量** | 产出 Phase 12 / Phase 13 可与之对比的确定性基线测量 |
+
+### 不涉及
+
+- ❌ Phase 11 **不得**悄悄实现完整的 Agent runtime
 
 ---
 
-## Phase 12：Agentic AI Coach
+## Phase 12：Retrieval & Knowledge Engineering
 
 ### 目标
 
-只在**产品行为确实需要动态决策**时，引入有界的 Agent 能力。
+作为**独立可审核**的工程 Phase，设计、实现并**评估** AI Coach（以及潜在其它学习体验）
+所需要的知识检索层。
+
+**不预设**向量检索一定必要。必须先建立至少一个更简单的基线。
+
+### 候选递进（按证据推进，不必全部实现）
+
+| 阶段 | 候选 |
+|------|------|
+| A | 结构化 / 数据库 / 词法 / 关键词检索 |
+| B | 语义 embedding 检索 |
+| C | 混合检索（hybrid） |
+| D | 重排（reranking） |
+
+### 评估要求
+
+本 Phase 必须定义评估数据集，并对适当候选做对比。指标**根据真实检索任务选择**，
+而不是因为时髦。候选指标包括：Recall@K、Precision@K、MRR、nDCG、context precision、
+context recall、answer groundedness / faithfulness、task usefulness、
+P50 / P95 检索延迟、token 影响、可测量的金钱成本。
+
+### 必须产出的架构决策
+
+- 哪种检索方法胜出、为什么、其被测量的 trade-off；
+- RAG 是否属于生产；
+- 在哪些场景下更简单的检索仍然更优。
+
+> **合法的负面结论。** “语义 / 向量检索对某个语料不值得其复杂度”**不是**失败的 Phase，
+> 只要它由证据支持。RAG 在这里是一次严肃的工程调查 / 作品集目标；生产采纳仍由证据决定。
+
+### 检索最小安全验收标准（R-02，本阶段内）
+
+只要本阶段引入检索，就同时引入了新的风险，因此**检索的最小安全边界必须在同一 Phase 内建立**
+（这是最小正确性 / 安全门，**不是**把 Phase 12 变成完整安全 Phase）：
+
+- 检索到的内容被当作**不可信数据（untrusted data）**，而非系统权威（system authority）；
+- 记录 **provenance / 来源元数据**；
+- 定义 **prompt-injection / 间接注入边界**；
+- 覆盖**恶意 / “指令式”检索内容**的测试用例；
+- **检索证据与治理性 system 指令之间的隔离**（evidence vs governing instructions）。
+
+### 不涉及
+
+- ❌ 不预设 Agent；确定性 Workflow + 检索是合法形态
+- ❌ 不因“本阶段是检索阶段”就把向量库设为强制交付物
+- ❌ 不把本阶段扩展为完整安全 Phase（只建立上面这组检索最小安全门）
+
+---
+
+## Phase 13：Agentic AI Coach & Tool System
+
+### 目标
+
+只有在以下前提满足之后，才把**真正的模型驱动动态行为**引入 AI Coach：
+
+- Coach 架构已经干净（Phase 11）；
+- 已有基线评估（Phase 11）；
+- 检索行为已经被理解（Phase 12）。
+
+默认先做**有界的单一 Agent**。**不**为了架构外观引入 Multi-Agent。
+
+### 入口门：真实动态决策需求（R-06，本阶段内）
+
+在实现任何 Agent 之前，本阶段必须先建立：
+
+1. 无法充分预定的**具体决策 / 路径 / 工具 / 动作选择**；
+2. 为什么**确定性 Workflow 不足以**支撑该有界行为；
+3. 用于对比的**确定性基线**（来自 Phase 11）。
+
+若 AI Coach **不存在**合法的动态决策问题：**不得制造虚假的 Agent 自主性**——
+要么识别另一个与产品一致的有界 Agent 用例，要么通过正常治理流程提出路线图 / 标准修订。
+作品集目标**不得**凌驾于架构正确性（APP-004）之上。
 
 ### 预期方向
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P12-01 | 只做真正动态的决策 | 确定性步骤继续用 Workflow |
-| P12-02 | 定义有界 tools | 工具边界明确、可审核 |
-| P12-03 | 先建立 Agent 评估 | 在声称"变好"之前先有度量方式 |
-| P12-04 | 检索能力（若需要） | RAG / 语义检索按**自身**门槛评估（见 APP-004），**不因本阶段是 Agent 阶段而成为义务**；确定性 Workflow + 检索也是合法形态 |
-| P12-05 | 互操作 / 服务边界（若需要） | MCP 与外部服务边界按**自身**门槛评估，可能**不需要 Agent** 即成立 |
-| P12-06 | 保留非 Agent / 手动 Coach 体验 | 用户可见功能不依赖 Agent |
+| P13-01 | 只做真正动态的决策 | 确定性步骤继续用 Workflow |
+| P13-02 | allowlisted tool registry | 只暴露已批准的能力 |
+| P13-03 | tool schemas / tool-result 处理 | 工具契约明确、可审核 |
+| P13-04 | loop / stopping conditions | 明确的循环与停止条件 |
+| P13-05 | retry / failure 行为 | 有界的重试与失败处理 |
+| P13-06 | budgets / limits | 预算与上限（步数 / 时间 / token / 成本） |
+| P13-07 | context management | 有界的上下文管理 |
+| P13-08 | safe read/write 区分 | 读 / 写能力边界清晰 |
+| P13-09 | 保留非 Agent / 手动 Coach 体验 | 用户可见功能不依赖 Agent |
+
+### 评估要求
+
+适当的指标包括：task success rate、tool-selection accuracy、tool-argument / schema validity、
+unnecessary-tool-call rate、trajectory length、recovery from tool / model failure、
+latency、token / cost impact。
+
+**最重要的要求：把 Agentic Coach 行为与 Phase 11 的确定性 Coach 基线做对比。**
+目标是回答：**“Agent 自主性究竟改善了什么，又让什么变差了？”**
+
+> 若 Agent 自主性并未改善某个 workflow，就保留确定性 workflow。
+
+### 最小 Agent / tool 安全（R-02，本阶段内）
+
+这些最小控制**必须在 Phase 13 内建立**，**不得**推迟到 Phase 14：
+
+- allowlisted tools（allowlist 工具注册表）；
+- 权威用户身份 / **user isolation**；
+- 显式 **permission** 边界；
+- **read vs write** 区分；
+- 实质性高风险写入 / 动作的 **confirmation / HITL**；
+- 有界**预算 / 循环上限**；
+- **tool 失败隔离**（failure containment）；
+- 足以重建关键工具决策的 **audit / trace 钩子**。
 
 ### 不涉及
 
-- ❌ 不承诺 MCP、LangGraph、向量数据库或 fine-tuning 作为必需交付物
+- ❌ 不承诺 Multi-Agent、LangGraph、向量数据库或 fine-tuning 作为必需交付物
 - ❌ 不设立网站级 / master Learning Path Agent
+- ❌ 不把上述最小 Agent / tool 安全推迟到 Phase 14
 
 ---
 
-## Phase 13：Production & Portfolio Hardening
+## Phase 14：MCP Interoperability, AgentOps & Safety
 
 ### 目标
 
-完成生产就绪与作品集展示的最后步骤。
+作为**自有边界的独立 Phase**，展示一个**合法的 MCP 互操作边界**以及生产风格的
+Agent 运行控制。
+
+**MCP 不得仅因为内部已有函数就被引入。** 首选架构方向：
+
+```
+Application Use Cases
+   ↓
+多个 adapter
+   ├─ Web / API
+   ├─ 内部 AI Coach tool adapter
+   └─ MCP adapter
+```
+
+Domain / Application 核心**不得**依赖 MCP。只暴露**刻意选定**的能力子集；
+除非确有写入需求，优先安全 / 只读能力。候选示例（**具体工具不由本次修订决定**）：
+vocabulary search、word details、learner-profile lookup、reading-material search、
+knowledge retrieval。
+
+### 互操作故事
+
+MCP 必须有一个真实的互操作故事，例如：
+“外部 MCP 兼容客户端可以通过标准协议复用选定的学习能力。”
+**不必**为了证明 MCP 而强行拆出外部微服务；只要互操作边界真实，单进程 MCP adapter 是可接受的。
+
+### MCP 专属与生产风格硬化（安全硬化，**不是**首次安全边界）
+
+检索最小安全（Phase 12）与最小 Agent / tool 安全（Phase 13）已在**引入风险的同一 Phase**
+内建立。本阶段**不**承担这些安全边界的首次建立，而是做 MCP 专属与生产风格硬化，例如：
+
+- 外部客户端 / **协议授权**（external-client / protocol authorization）；
+- **MCP 能力暴露策略**（capability exposure policy）；
+- 传输 / 协议边界关注点；
+- 更丰富的 **audit / replay / debugging**；
+- **运行监控**（operational monitoring）；
+- 在确有理由时的 **red-team / adversarial 硬化**；
+- 跨外部互操作边界的**策略执行**（policy enforcement）。
+
+---
+
+## Phase 15：Production, Benchmark & Portfolio Hardening
+
+### 目标
+
+完成生产就绪、基准 / 实验汇总与作品集展示的最后步骤。**本阶段不是正确性第一次建立的地方**——
+它校验并打包前面 Phase 已经证明的能力。
 
 ### 任务清单
 
 | # | 任务 | 涉及文件 | 说明 |
 |---|------|---------|------|
-| P13-01 | 部署与环境配置 | `Dockerfile`, `.env.example`, `vercel.json` 等 | 根据目标平台配置部署 |
-| P13-02 | 认证 / 安全 | API 路由、环境变量、CORS、身份边界 | 防止未授权访问 |
-| P13-03 | 生产可观测性 | Trace / 日志的持久化或外部平台接入 | 仅在确有需要时 |
-| P13-04 | 迁移完整性**复验** | `prisma/migrations/**` | 在**全新环境**上复验部署、迁移执行、备份 / 回滚与生产就绪；这是**复验**，正确性首次建立点必须早于本阶段（见 `EVALUATION_BASELINE.md` 迁移验证门） |
-| P13-05 | 演示数据准备 | 种子脚本或 fixture | 方便审查者快速体验 |
-| P13-06 | README 完善 | `README.md` | 项目简介、架构、快速开始 |
-| P13-07 | 架构图生成 | `docs/architecture-diagram.png` | 基于 TARGET_ARCHITECTURE.md 的可视化 |
-| P13-08 | 作品集说明 | `docs/portfolio/` | 项目亮点、技术决策、难点解决方案 |
-| P13-09 | 面试讲解材料 | `docs/interview-guide.md` | 可口头讲解的架构要点和权衡 |
-| P13-10 | 最终端到端验证 | — | 全量回归 + 真实环境验证 |
+| P15-01 | 部署与环境配置 | `Dockerfile`, `.env.example`, `vercel.json` 等 | 根据目标平台配置部署 |
+| P15-02 | 认证 / 授权的**生产化复验与最终加固** | API 路由、环境变量、CORS、身份边界 | 基础安全 / 授权边界由 **Phase 10** 建立；本阶段只做部署级复验与加固，**不得**成为这些基础控制的首次实现点 |
+| P15-03 | CI/CD | 流水线配置 | 可重复的构建 / 测试 / 部署 |
+| P15-04 | 生产可观测性 | Trace / 日志 / metrics 的持久化或外部平台接入 | 仅在确有需要时 |
+| P15-05 | 迁移完整性**复验** | `prisma/migrations/**` | 在**全新环境**上复验部署、迁移执行、备份 / 回滚与生产就绪；这是**复验**，正确性首次建立点必须早于本阶段（见 `EVALUATION_BASELINE.md` 迁移验证门） |
+| P15-06 | 备份 / 回滚就绪（适当处） | 运维文档 / 脚本 | 生产风险控制 |
+| P15-07 | 演示 / 种子数据准备 | 种子脚本或 fixture | 方便审查者快速体验 |
+| P15-08 | README 完善 | `README.md` | 项目简介、架构、快速开始 |
+| P15-09 | 架构图生成 | `docs/architecture-diagram.png` | 基于 TARGET_ARCHITECTURE.md 的可视化 |
+| P15-10 | 威胁 / 安全文档（适当处） | `docs/` | 记录并汇总各 Phase 已建立的安全 / 权限模型（不是首次建立） |
+| P15-11 | **基准 / 实验汇总** | `docs/` | 汇总 Phase 12 / 13 / 14 的实验结论与基准表 |
+| P15-12 | 作品集案例研究 + 面试指南 + demo 脚本 | `docs/portfolio/`, `docs/interview-guide.md` | 架构、trade-off、失败与测量 |
+| P15-13 | 最终端到端验证 | — | 全量回归 + 真实环境验证 |
 
 ### 不涉及
 
@@ -384,7 +575,7 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 > **post-Phase-6 说明（2026-09-16）。** 上表的"迁移优先级"列表达的是 **Phase 1 视角的
 > AI 调用迁移优先级**，它**不等于**产品优先级。产品优先级已重新基线：
 > **Vocabulary 是下一个产品优先级（Phase 7–9）**，而 **AI Coach 的 Agentic 工作被延后
-> 到 Phase 11–12**。冻结模块的保护语义也随之明确为"默认冻结，需当前已批准 Phase 任务书
+> 到 Phase 11（基础重构）/ Phase 13（Agentic）**。冻结模块的保护语义也随之明确为"默认冻结，需当前已批准 Phase 任务书
 > 加用户明确授权才可限定修改"，见 `CLAUDE.md` 与 `DECISIONS.md` ADR-015。
 
 ---

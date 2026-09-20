@@ -651,3 +651,120 @@ Phase 6 通过外部批准、进入 Phase 7 之前，产品的未来方向被重
 - 任何 Vocabulary 数据导入 PR 必须引用本 ADR 第 4 条并附来源 / 许可记录，
   否则视为超出范围。
 - 若未来证据表明 Books 与 Packs 应当收敛，需要新的 ADR 记录证据与取舍，不能静默合并。
+
+---
+
+## ADR-017: 作品集级 AI 应用工程证据成为显式成功要求（含跨领域评估 / 实验）
+
+**日期:** 2026-09-20
+**状态:** **Accepted**（2026-09-20 经外部评审 **Approved**，Blocking Issues: None；
+post-Phase-6 第二次路线修订。该修订此前以 `Proposed — Pending External Review` 状态送审，
+由本次行政收尾命令转为 `Accepted`。**Phase 7 尚未开始**，本 ADR 不授予任何实现授权）
+
+**决定:**
+
+项目的成功标准新增一条显式要求：这次重构不仅要产出**可用的英语学习产品**，还要产出一个
+**作品集级的 AI 应用工程项目**，能够经受未来 AI / LLM / Agent 工程面试的技术追问。
+
+1. **成功标准升级。** “作品集级 AI 应用工程证据”成为**显式的项目成功要求**。完整的判定契约
+   归新文档 `docs/refactor/PORTFOLIO_ENGINEERING_CRITERIA.md`：`MASTER_PLAN.md` 继续拥有
+   **执行顺序**，该文件拥有**项目完成时必须存在的证据**。本 ADR 只固定这一要求，不重述契约细节。
+2. **评估 / 实验是跨领域工程要求，不是晚期测试关切。** Evaluation 被提升为**系统级能力**：
+   golden set、自动化回归评估、检索评估、Agent / tool 评估、baseline vs candidate 对比、
+   bad-case 追踪、以及在有理由处的质量门禁。Observability 不等于 console logging，
+   Evaluation 不等于 unit testing。
+3. **至少两次有意义的工程对照研究。** 到项目完成时，必须存在**至少两个**可测量的工程对照
+   （例如 lexical vs semantic vs hybrid retrieval；确定性 Coach vs Agentic Coach；
+   model / provider 对比；tool-selection 策略对比）。每个实验记录
+   Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Limitation → Decision。
+4. **Phase 数量仍然从属于范围。** Phase 拆分 / 合并 / 重排必须走正常治理流程
+   （任务书 + 外部审核 + 用户明确批准）；阶段数不是目标。新增的 Phase 12–15 是有界范围与
+   可审核性的结果（与 ADR-015 第 6 条一致）。
+
+**理由:**
+
+- 项目已经明确把“可作为面试项目完整讲解”作为目标之一（`MASTER_PLAN.md` 重构目标）。
+  但“有功能”与“有可被追问的工程证据”是两件事：前者不需要评估与实验，后者需要。
+- Phase 2 已建立评估基线、Phase 5 已建立应用级 Trace，具备把评估 / 实验提升为跨领域要求的
+  既有地基；若不在路线图层级明确它，后续 AI 能力容易退化为“凭感觉说变好了”。
+- 明确“实验义务 ≠ 生产义务”，可以在不违反“架构复杂度只为真实问题引入”这一既有原则的前提下，
+  保证重要的 AI 应用工程技术被认真调查而不是被静默跳过。
+
+**后续影响:**
+
+- **批准记录（2026-09-20）。** 本 ADR 于 2026-09-20 经外部评审 **Approved**
+  （Blocking Issues: None），由行政收尾命令把状态从 `Proposed — Pending External Review`
+  转为 `Accepted`；下面的“已同步”现指**已生效**的权威基线。
+- `MASTER_PLAN.md` 的核心原则与 Phase 表、`MIGRATION_PLAN.md`、`PHASE_STATUS.md`、
+  `TARGET_ARCHITECTURE.md`、`ARCHITECTURE_RULES.md`、`EVALUATION_BASELINE.md`、
+  `TEST_STRATEGY.md` 已同步。
+- Phase 10 承担评估 / 实验**基础设施**；Phase 11 产出确定性 Coach 基线；Phase 12 / 13 /
+  14 各自承担其领域的评估；Phase 15 汇总基准与实验结论。
+- 本 ADR **不**创建任何 Phase 7 任务书 / 源码 / schema / migration / handoff / review，
+  也**不**安装任何评估平台或观测 SDK（见 ADR-018 与 `PORTFOLIO_ENGINEERING_CRITERIA.md`）。
+
+---
+
+## ADR-018: AI 能力采纳门槛 —— 检索 / Agent / MCP 的可测量调查与 fine-tuning 门（实验义务 ≠ 生产义务）
+
+**日期:** 2026-09-20
+**状态:** **Accepted**（2026-09-20 经外部评审 **Approved**，Blocking Issues: None；R-01–R-07
+修正已全部 resolved；post-Phase-6 第二次路线修订。该修订此前以
+`Proposed — Pending External Review` 状态送审，由本次行政收尾命令转为 `Accepted`。
+**Phase 7 尚未开始**，本 ADR 不授予任何实现授权）
+
+**决定:**
+
+为若干重要 AI 应用工程技术固定**可测量的采纳门槛**。核心区分是：
+**“必须做一次严肃的工程调查”不等于“必须进入生产”**。生产采纳仍由证据决定。
+
+1. **RAG / 检索必须接受一次可测量的工程调查，生产采纳由证据决定。**
+   检索（Phase 12）**不预设**向量检索必要：先建立至少一个更简单的基线
+   （结构化 / 数据库 / 词法 / 关键词），并按证据递进到语义 embedding / hybrid / reranking。
+   必须产出明确架构决策：哪种方法胜出、为什么、被测量的 trade-off、**RAG 是否属于生产**、
+   以及更简单检索在何处仍然更优。**“语义 / 向量检索不值得其复杂度”在证据支持下是合法结论，
+   不构成失败的 Phase。** “装了一个向量数据库 + 跑通一次语义搜索”不构成证据。
+2. **Agentic Coach 必须相对确定性基线被评估，而不是被假定更优。**
+   Agent 自主性（Phase 13）必须先经过 Phase 11（Coach 基础重构 + 确定性评估基线）与
+   Phase 12（检索理解）。默认先做**有界单一 Agent**；**不**为架构外观引入 Multi-Agent。
+   必须回答“Agent 自主性究竟改善了什么，又让什么变差了”，
+   **若 Agent 自主性并未改善某个 workflow，就保留确定性 workflow。**
+   把普通 Workflow 称作 Agent、或使用 LangGraph 却没有动态决策，都不满足本门槛。
+3. **至少一个合法的 MCP 互操作边界是显式作品集目标，但要求真实协议价值。**
+   MCP（Phase 14）必须有真实的互操作故事（例如外部 MCP 兼容客户端可通过标准协议复用
+   选定的学习能力）。首选架构方向是 `Application Use Cases → 多个 adapter`
+   （Web/API、内部 AI Coach tool adapter、MCP adapter）；**Domain / Application 核心不得依赖 MCP**。
+   只暴露刻意选定的能力子集，优先只读。**不**为证明 MCP 而强行拆出外部微服务；
+   只要互操作边界真实，单进程 MCP adapter 可接受。
+   “把内部一个函数包进 MCP、再由同一组件调用”不满足本门槛。
+4. **fine-tuning 由被测量的 specialization 瓶颈把门，而不是由技术吸引力把门。**
+   fine-tuning **不是**强制 Phase，也**不是**强制技术。只有当后续评估暴露出一个
+   **狭窄、可重复、可测量、且具有经济意义**的失败模式，并且该失败模式无法由
+   更好的 prompt / 工具 schema / 检索 / 模型选择 / 工作流架构充分解决时，
+   才可以提出一个有界的 specialization 实验。该实验必须经过未来已批准的修订 / 任务，
+   **不得**在当前阶段夹带。
+5. **这些能力不互相绑定。** 检索 / RAG、MCP、向量库、外部服务边界不要求 Agent 行为，
+   因此不适用 Agent 特有的“动态决策”准入条件（与 `ARCHITECTURE_RULES.md` APP-004 第 4 条、
+   ADR-015 v2 R-05 一致）。**确定性 Workflow + 检索是合法形态。**
+
+**理由:**
+
+- 作品集深度要求对关键技术做一次严肃调查（ADR-017），但既有的“架构复杂度只为真实问题引入”
+  原则必须继续生效；把两者写成“实验义务 ≠ 生产义务”可以在不引入生产技术债的前提下满足两者。
+- 若把 RAG / Agent / MCP 设为生产强制项，会直接违反 `MASTER_PLAN.md` 重构目的与
+  ADR-015 第 4 条；若完全不调查，则项目无法提供可被追问的 AI 应用工程证据。
+- 把 Agent 与确定性基线做对照，是区分“工程”与“演示”的关键；把 MCP 绑定到真实互操作故事，
+  是区分“协议价值”与“简历装饰”的关键。
+
+**后续影响:**
+
+- **批准记录（2026-09-20）。** 本 ADR 于 2026-09-20 经外部评审 **Approved**
+  （Blocking Issues: None），由行政收尾命令把状态从 `Proposed — Pending External Review`
+  转为 `Accepted`；下面的门槛文本现为**已生效**的权威约束。
+- Phase 12 / 13 / 14 的出口条件由 `MIGRATION_PLAN.md` 与 `PHASE_STATUS.md` 拥有；
+  本 ADR 只固定采纳门槛的不变式。
+- `PORTFOLIO_ENGINEERING_CRITERIA.md` 逐条以**双轴模型**标注每项标准：
+  义务轴（`MC` 强制能力 / 证据、`ME` 强制工程实验、`CP` 条件性生产采纳）
+  与证据 / 运行时表面轴（`PR` 生产运行时、`ER` 工程 / CI / 评估基础设施、`DOC` 文档 / 作品集证据）。
+- 任何引入向量库 / MCP SDK / Agent 框架 / fine-tuning 的 PR，都必须引用本 ADR 对应条款并附
+  被测量的证据，否则视为超出范围。

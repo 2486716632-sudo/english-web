@@ -41,7 +41,8 @@
   损坏历史迁移（UTF-16 PowerShell 错误转储）；**完整迁移链的生产部署在独立修复前保持 BLOCKED**。
 - **当前阶段：Phase 7 — Vocabulary Platform Design & Data Provenance — Ready / Not Started**
   （需用户明确批准后启动；必须先复用 Phase 2–6 受保护基线。标题于 2026-09-16 路线图
-  重新基线时更新，见下方记录）
+  重新基线时更新。**2026-09-20 第二次路线修订（Phase 10–15）已于 2026-09-20 经外部评审
+  Approved 并生效**（此前以提案状态送审）；见下方两条记录。**Phase 7 仍为 Ready / Not Started。**）
 
 ### 路线图重新基线记录（2026-09-16，post-Phase-6 行政 / 权威规划修订）
 
@@ -55,13 +56,47 @@
 - **网站级 / master Learning Path Agent 不会建立**（不横跨 Vocabulary / Reading /
   Listening / AI Coach 做学习路径编排）。
 - **Vocabulary 成为下一个产品 / 领域优先级**（Phase 7–9）；**AI Coach 的 Agentic 工作
-  被刻意延后**到独立的后继阶段（`MASTER_PLAN.md` 的 Phase 11–12）。
+  被刻意延后**到独立的后继阶段（`MASTER_PLAN.md` 的 Phase 11 基础重构 / Phase 13 Agentic）。
 - Vocabulary Books 与 Themed Packs 是**两个不同的产品域**，只共享词汇基础设施（ADR-016）。
 - 外部 Vocabulary 数据集的引入以 **provenance / 上游来源 / 许可 / 转换方法 / 版本 /
   质量检查**为前置条件（ADR-016）；CET-4 / CET-6、IELTS 取向、General English、
   Business English 目前只是 Phase 7 的**候选调研对象**，不是已批准的导入。
 - 修订后的路线图归 `MASTER_PLAN.md`；迁移路径归 `MIGRATION_PLAN.md`；
   Phase 7 的详细执行任务书将在本修订经外部评审后**单独重建**。
+
+### 第二次路线修订记录（2026-09-20，portfolio 工程成功契约 — **已批准 / 生效**）
+
+这是一次**文档 / 治理层面的行政修订（administrative / canonical planning amendment）**，
+于 **2026-09-20 经外部评审 Approved（Blocking Issues: None，R-01–R-07 已全部 resolved）**，
+并由行政收尾命令生效（此前以提案状态送审）。它**不是 Phase 实现**，也不是 Phase 7 启动；
+下面的 Phase 10–15 内容现为**已批准的权威路线图**：
+
+- **前置基线。** 上一次 post-Phase-6 路线重新基线（提交
+  `docs: rebaseline post-phase-6 refactor roadmap`）已提交并推送到远端，成为本次修订的
+  **干净父基线**；本次修订在其之上新建独立分支。
+- **成功标准升级。** “作品集级 AI 应用工程证据”成为**显式的项目成功要求**；完整契约见
+  新文档 `docs/refactor/PORTFOLIO_ENGINEERING_CRITERIA.md`（`MASTER_PLAN.md` 拥有
+  **执行顺序**，该文件拥有**完成时必须存在的证据**；状态为 `生效 / Active`）。
+- **Phase 10 / 11 出口加强。** Phase 10 更名并扩展为
+  `Reliability, Ownership & Evaluation Platform Convergence`；Phase 11 增加**确定性 Coach 评估基线**。
+- **Phase 11 之后的路线重建。** 新增 Phase 12（Retrieval & Knowledge Engineering）、
+  Phase 13（Agentic AI Coach & Tool System）、Phase 14（MCP Interoperability, AgentOps & Safety）；
+  旧的终止阶段被加强为 Phase 15（Production, Benchmark & Portfolio Hardening）。
+- **安全在引入风险的 Phase 内建立最小边界（R-02）。** Phase 12 建立检索最小安全；
+  Phase 13 建立最小 Agent / tool 安全；Phase 14 只做 MCP 专属与生产风格硬化，
+  **不得**成为安全边界的首次建立点。
+- **决策门（R-03 / R-06）。** Phase 10 实现前有范围 / 拆分决策门；Phase 13 实现前有
+  **真实动态决策需求**入口门（缺失则不得制造虚假 Agent 自主性）。
+- **实验义务 ≠ 生产义务。** RAG / Agent / MCP / 向量库 / fine-tuning **仍是条件性生产采纳**；
+  对其中重要的 AI 应用工程技术，路线图要求一次可测量的工程调查或有证据的工程决策，
+  而不是静默跳过。允许的负面结论包括“检索不值得其复杂度”“确定性 Workflow 优于 Agent”。
+- **Phase 7 状态不变。** Phase 7 仍为 **Ready / Not Started**；本次修订**没有**创建 Phase 7
+  任务书、源码、schema、migration、handoff 或 review。
+- **fine-tuning 门槛与 Phase 数量原则**见 `DECISIONS.md` ADR-017 / ADR-018 与
+  `MASTER_PLAN.md` 的“Portfolio 工程成功契约”一节。
+- **状态转换（已完成）。** 2026-09-20 的外部批准已由本次行政收尾命令把 ADR-017 / ADR-018
+  从 `Proposed — Pending External Review` 转为 `Accepted`，并把
+  `PORTFOLIO_ENGINEERING_CRITERIA.md` 转为 `生效 / Active`；本记录保留“先提案、后批准”的可追溯性。
 
 ### 上一阶段（Phase 3）归档
 
@@ -453,7 +488,7 @@ Prisma 迁移链问题）
 **范围门禁（复审修正 R-01）:** 仅当 Phase 7 判定"迁移链修复 + Books 实现可留在同一个有界 Phase"
 时才按单阶段执行；否则先按 Phase 7 的出口决策拆分路线图。
 **迁移验证门（复审修正 R-02）:** 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，
-迁移正确性与可复现性（真实数据库验证）就是**本阶段**的验收门禁，不得推迟到 Phase 13。
+迁移正确性与可复现性（真实数据库验证）就是**本阶段**的验收门禁，不得推迟到 Phase 15。
 **开始日期:** —
 **完成日期:** —
 **审核:** ⏳
@@ -469,41 +504,86 @@ Prisma 迁移链问题）
 
 ---
 
-## Phase 10：Reliability, Ownership & Architecture Convergence
+## Phase 10：Reliability, Ownership & Evaluation Platform Convergence
 
-**状态:** Not Started
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**状态:** Not Started（2026-09-20 第二次路线修订中更名并加强出口）
+**本阶段出口:** 建立项目级评估 / 实验基础设施（评估 harness、golden-set / fixture 约定、
+实验记录约定、trace / metrics 导出策略、延迟 / 错误 / token / 成本测量口径），
+使后续 Phase 12 / 13 的 AI 实验**可测量**，而不是事后补做。
+**范围 / 拆分决策门（R-03）:** 实现开始**之前**必须显式判定
+(A) Reliability / Ownership / Architecture convergence 与
+(B) Evaluation Platform foundation 能否安全留在**同一个有界 Phase**；
+若属可独立审核的高风险工作流，则在 Phase 10 实现开始前拆分路线图（Phase 编号不受保护）。
+该判定由 Phase 10 的已批准任务书 / 外部评审产出；本次修订不预先拆分、不新增编号。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
 ## Phase 11：AI Coach Foundation Refactor
 
 **状态:** Not Started
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**本阶段出口:** 在 Phase 11 结束时产出**确定性 Coach 评估基线**（golden set + 基线测量），
+供 Phase 12（检索）与 Phase 13（Agent）对比；**不得**在本阶段悄悄实现完整 Agent runtime。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 12：Agentic AI Coach
+## Phase 12：Retrieval & Knowledge Engineering
+
+**状态:** Not Started（2026-09-20 新增的独立可审核 Phase）
+**本阶段出口:** 设计、实现并**评估**知识检索层；产出明确的架构决策——
+哪种检索方法胜出、为什么、被测量的 trade-off，以及 **RAG 是否属于生产**。
+必须先建立至少一个更简单的基线；负面结论（语义 / 向量检索不值得其复杂度）在证据支持下合法。
+**检索最小安全（R-02，本阶段内）:** 因为本阶段**引入**检索风险，检索的最小安全边界必须在
+同一 Phase 内建立：不可信检索内容（非系统权威）、provenance / 来源元数据、
+prompt-injection / 间接注入边界、恶意 / “指令式”检索内容测试用例、
+检索证据与治理性 system 指令的隔离。**不得**把首次安全边界推迟到 Phase 14。
+**开始日期:** — **完成日期:** — **审核:** ⏳
+
+---
+
+## Phase 13：Agentic AI Coach & Tool System
 
 **状态:** Not Started（**刻意延后**；只在产品行为确实需要动态决策时评估）
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**本阶段出口:** 默认先做有界**单一 Agent**；tool registry / schemas / loop 控制 / 预算 /
+context 管理 / read-write 边界；并把 Agentic Coach 行为与 Phase 11 的确定性基线做**对照评估**。
+若 Agent 自主性未改善某个 workflow，则保留确定性 workflow。
+**入口门：真实动态决策需求（R-06，本阶段内）:** 实现前必须指出无法充分预定的具体决策 / 路径 /
+工具 / 动作选择，解释为什么确定性 Workflow 不足，并定义用于对比的确定性基线（Phase 11）。
+若 AI Coach 不存在合法动态决策问题，**不得制造虚假 Agent 自主性**——要么识别另一个与产品一致的
+有界 Agent 用例，要么走正常治理流程提出路线图 / 标准修订。
+**最小 Agent / tool 安全（R-02，本阶段内）:** allowlist 工具、权威用户身份 / user isolation、
+显式 permission 边界、read vs write 区分、高风险写入的 confirmation / HITL、
+有界预算 / 循环上限、tool 失败隔离、足以重建关键工具决策的 audit / trace 钩子。
+**不得**推迟到 Phase 14。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 13：Production & Portfolio Hardening
+## Phase 14：MCP Interoperability, AgentOps & Safety
 
-**状态:** Not Started（路线图的终止阶段）
+**状态:** Not Started（2026-09-20 新增的独立可审核 Phase）
+**本阶段出口:** 一个**合法的 MCP 互操作边界**（Application Use Cases → 多个 adapter，
+含 MCP adapter；Domain / Application 不依赖 MCP）**+ MCP 专属与生产风格硬化**
+（外部客户端 / 协议授权、MCP 能力暴露策略、传输 / 协议边界、更丰富的 audit / replay / debugging、
+运行监控、确有理由时的 red-team 硬化、跨外部互操作边界的策略执行）。
+**定位（R-02）:** 安全边界已在引入风险的 Phase 12 / 13 内建立；本阶段做硬化与生产化，
+**不得**成为检索 / Agent 安全边界的首次建立点。
+**开始日期:** — **完成日期:** — **审核:** ⏳
+
+---
+
+## Phase 15：Production, Benchmark & Portfolio Hardening
+
+**状态:** Not Started（路线图的终止阶段；2026-09-20 第二次路线修订由旧 Phase 13 加强而来）
 **迁移完整性定位（复审修正 R-02）:** 本阶段只做**全新环境复验**（部署、迁移执行、备份 / 回滚、
 生产就绪）；迁移正确性的**首次建立点必须更早**——由修复 / 变更迁移的那个已批准 Phase 承担。
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**本阶段出口:** 部署 + 认证 / 授权 + CI/CD + 生产可观测性 + 演示数据 + README + 架构图 +
+威胁 / 安全文档 + **基准 / 实验汇总** + 作品集案例研究 / 面试指南 / demo 脚本。
+本阶段**不是**正确性第一次建立的地方——它校验并打包前面 Phase 已经证明的能力。
+**基础安全 / 授权边界归属（R-05）:** 缺失 API Key 的 pre-flight 校验、CORS、auth 等**基础**安全 /
+授权边界由 **Phase 10** 建立 / 修复；本阶段只做部署级**复验与最终加固**。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
@@ -513,4 +593,9 @@ Prisma 迁移链问题）
 
 - ~~Phase 7：学习路径 Agent~~ — 于 2026-09-16 退役，见 `DECISIONS.md` ADR-015。
 - ~~Phase 8：测试与可靠性加固~~ — 由当前 Phase 10 承担，见 `MASTER_PLAN.md`。
-- ~~Phase 9：部署与作品集包装~~ — 由当前 Phase 13 承担，见 `MASTER_PLAN.md`。
+- ~~Phase 9：部署与作品集包装~~ — 由当前 Phase 15 承担，见 `MASTER_PLAN.md`。
+- ~~Phase 12：Agentic AI Coach（旧编号）~~ — 2026-09-20 第二次路线修订后，
+  Agentic 工作移到 Phase 13（`Agentic AI Coach & Tool System`），Phase 12 改为
+  `Retrieval & Knowledge Engineering`。见 `DECISIONS.md` ADR-017 / ADR-018。
+- ~~Phase 13：Production & Portfolio Hardening（旧编号）~~ — 2026-09-20 加强并移到
+  Phase 15（`Production, Benchmark & Portfolio Hardening`）。见 `MASTER_PLAN.md`。

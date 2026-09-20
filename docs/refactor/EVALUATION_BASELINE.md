@@ -324,11 +324,17 @@ C2 访谈类型：
 | UI 组件渲染行为 | E2E 测试需要 Playwright 配置和浏览器 | Phase 10 |
 | 页面级交互（路由、状态、滚动恢复） | E2E 测试 | Phase 10 |
 | 模块级缓存过期行为 | 当前实现不过期 | Phase 6 |
-| 数据库迁移正确性 | 需要可写数据库连接；且 `20260609000001_baseline` 迁移链本身损坏 | **修复 / 变更迁移的那个已批准 Phase（当前规划为 Phase 8，或其拆分后继阶段）——同阶段验收**；Phase 13 只做全新环境复验 |
+| 数据库迁移正确性 | 需要可写数据库连接；且 `20260609000001_baseline` 迁移链本身损坏 | **修复 / 变更迁移的那个已批准 Phase（当前规划为 Phase 8，或其拆分后继阶段）——同阶段验收**；Phase 15 只做全新环境复验 |
 
 > **2026-09-16 说明：** 上表的「建议覆盖 Phase」是**未来指向**，已按 post-Phase-6
 > 路线重新基线更新（旧值 Phase 8 / Phase 9 / Phase 7+ 分别对应现在的 Phase 10 /
-> Phase 13 / Phase 11）。已经发生过的历史指向（Phase 3 / Phase 4 / Phase 6）保持原样。
+> Phase 15 / Phase 11）。已经发生过的历史指向（Phase 3 / Phase 4 / Phase 6）保持原样。
+>
+> **2026-09-20 补充（第二次路线修订 — 已批准 / 生效）：** 评估已被提升为
+> **系统级跨领域能力**（ADR-017，**Accepted**；2026-09-20 外部评审 Approved）。
+> 评估 harness / golden-set 约定 / 实验记录约定的**基础设施**归 Phase 10；确定性 Coach
+> 基线归 Phase 11；检索评估归 Phase 12；Agent / tool 评估归 Phase 13；基准 / 实验汇总归
+> Phase 15。逐条标准见 `PORTFOLIO_ENGINEERING_CRITERIA.md`。
 
 ### 迁移验证门（2026-09-16 复审修正 R-02）
 
@@ -339,8 +345,8 @@ C2 访谈类型：
    正确性的**首次建立点不得晚于该 Phase 的收尾**，不得顺延到后续阶段。
 2. **真实数据库验证属于该 Phase 的证据。** 与该 schema 变更相称的真实 DB / 集成验证
    （在隔离或临时数据库上跑完整迁移链、`prisma validate`，以及必要的迁移回放 /
-   可复现性检查）是该 Phase 的验收证据，**不得**推迟到 Phase 13 才第一次执行。
-3. **Phase 13 的定位是复验。** Phase 13 可以在**全新环境**上复验部署、迁移执行、
+   可复现性检查）是该 Phase 的验收证据，**不得**推迟到 Phase 15 才第一次执行。
+3. **Phase 15 的定位是复验。** Phase 15 可以在**全新环境**上复验部署、迁移执行、
    备份 / 回滚与生产就绪，但**不是**迁移正确性第一次被建立的地方。
 4. **历史不被改写。** 本门禁只约束**未来**的迁移变更；Phase 2–6 的历史记录保持不变。
 
@@ -364,8 +370,27 @@ C2 访谈类型：
 - **迁移验证**: 重构 Reading API 后，API 冒烟脚本应继续通过
 - **行为一致性**: SM-2 测试确保算法行为不变；AI 评估 fixture 验证输出格式不变
 
-### Phase 10（可靠性 / 测试加固）
+### Phase 10（Reliability, Ownership & Evaluation Platform Convergence）
 
 - 本阶段是所有测试的起点和基线
 - 当前的 `characterization test` 需要在重构后升级为 `contract test`
 - 纯逻辑覆盖可以进一步扩展到新增的 Domain Service
+- 新增**评估 / 实验基础设施**：评估 harness、golden-set / fixture 约定、实验记录约定、
+  trace / metrics 导出策略、延迟 / 错误 / token / 成本测量口径
+
+### Phase 11（AI Coach Foundation Refactor）
+
+- 建立**确定性 Coach 评估基线**（golden set + 基线测量），供 Phase 12 / 13 对比
+
+### Phase 12（Retrieval & Knowledge Engineering）
+
+- 定义检索评估数据集，并对检索候选（结构化 / 词法 / 语义 / hybrid / rerank）做对照评估；
+  记录检索指标、延迟与成本影响，并产出架构决策
+
+### Phase 13（Agentic AI Coach & Tool System）
+
+- 定义 Agent / tool 评估数据集与指标；把 Agentic Coach 行为与 Phase 11 的确定性基线对照
+
+### Phase 15（Production, Benchmark & Portfolio Hardening）
+
+- 汇总基准表与实验报告；复验部署与迁移；产出作品集 / 面试材料
