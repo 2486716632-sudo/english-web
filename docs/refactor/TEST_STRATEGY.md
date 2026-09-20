@@ -21,11 +21,11 @@
  ╱──────────────────╲
 ```
 
-| 层级 | 当前覆盖 | 目标覆盖（Phase 8） |
+| 层级 | 当前覆盖 | 目标覆盖（Phase 10） |
 |------|---------|-------------------|
 | **Unit + Characterization**（当前） | 95 tests | 200+ tests |
 | **Integration / API**（Phase 4+） | 脚本化冒烟 | CI 集成测试 |
-| **E2E / Manual**（Phase 8） | 人工冒烟清单 | Playwright E2E |
+| **E2E / Manual**（Phase 10） | 人工冒烟清单 | Playwright E2E |
 
 ---
 
@@ -93,7 +93,7 @@
 
 **何时引入:**
 - Phase 4：Reading Pipeline 的步骤级集成
-- Phase 8：API Route 的全量集成
+- Phase 10：API Route 的全量集成
 
 ### AI Evaluation Test（离线评估 / 契约校验）
 
@@ -188,7 +188,7 @@ npx vitest run
 | Phase 4（Pipeline 重构） | `sm2.test.ts`, `utils.test.ts` | SM-2 和工具函数行为不变 |
 | Phase 4（Route 薄化） | `api-smoke.sh` | API 端点可达性不变 |
 | Phase 6（记忆系统） | `word-cache.test.ts` | 缓存行为可能需兼容新记忆系统 |
-| Phase 8（测试加固） | 所有现有测试 | 全部通过 + 补充新测试 |
+| Phase 10（可靠性 / 测试加固） | 所有现有测试 | 全部通过 + 补充新测试 |
 
 ### 关键风险
 
@@ -208,7 +208,7 @@ npx tsc --noEmit                      # 必须通过
 npx vitest run                        # 必须全部通过
 ```
 
-### 扩展门禁（Phase 8 目标）
+### 扩展门禁（Phase 10 目标）
 
 ```bash
 npx tsc --noEmit

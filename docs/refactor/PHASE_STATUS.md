@@ -39,7 +39,29 @@
   用同义 Memory 键绕过 canonical User State 所有权，修改 canonical 事实必须走 profile/state 操作。
   已知部署门禁：`prisma/migrations/20260609000001_baseline/migration.sql` 是 Phase 6 之前的
   损坏历史迁移（UTF-16 PowerShell 错误转储）；**完整迁移链的生产部署在独立修复前保持 BLOCKED**。
-- **当前阶段：Phase 7 — Ready / Not Started**（需用户明确批准后启动；必须先复用 Phase 2–6 受保护基线）
+- **当前阶段：Phase 7 — Vocabulary Platform Design & Data Provenance — Ready / Not Started**
+  （需用户明确批准后启动；必须先复用 Phase 2–6 受保护基线。标题于 2026-09-16 路线图
+  重新基线时更新，见下方记录）
+
+### 路线图重新基线记录（2026-09-16，post-Phase-6 行政 / 权威规划修订）
+
+这是一次**文档 / 治理层面的行政修订（administrative / canonical planning amendment）**，
+**不是 Phase 实现**：
+
+- **没有启动任何 Phase 7 实现。** 没有 Phase 7 任务书、没有 Phase 7 handoff、
+  没有 Phase 7 review，也没有源码 / schema / migration / 依赖 / 测试变更。
+- 旧的 **「Phase 7 = 学习路径 Agent」** 方向在实现开始前被**退役**；取代范围见
+  `DECISIONS.md` ADR-015。历史 ADR 与历史阶段记录中的相关叙述**保留为历史证据**，不予改写。
+- **网站级 / master Learning Path Agent 不会建立**（不横跨 Vocabulary / Reading /
+  Listening / AI Coach 做学习路径编排）。
+- **Vocabulary 成为下一个产品 / 领域优先级**（Phase 7–9）；**AI Coach 的 Agentic 工作
+  被刻意延后**到独立的后继阶段（`MASTER_PLAN.md` 的 Phase 11–12）。
+- Vocabulary Books 与 Themed Packs 是**两个不同的产品域**，只共享词汇基础设施（ADR-016）。
+- 外部 Vocabulary 数据集的引入以 **provenance / 上游来源 / 许可 / 转换方法 / 版本 /
+  质量检查**为前置条件（ADR-016）；CET-4 / CET-6、IELTS 取向、General English、
+  Business English 目前只是 Phase 7 的**候选调研对象**，不是已批准的导入。
+- 修订后的路线图归 `MASTER_PLAN.md`；迁移路径归 `MIGRATION_PLAN.md`；
+  Phase 7 的详细执行任务书将在本修订经外部评审后**单独重建**。
 
 ### 上一阶段（Phase 3）归档
 
@@ -398,9 +420,15 @@ B-01–B-05 全部 resolved and accepted；Blocking Issues: None）
 
 ---
 
-## Phase 7：学习路径 Agent
+## Phase 7：Vocabulary Platform Design & Data Provenance
 
 **状态:** Ready / **Not Started**（前置条件已满足：Phase 6 Completed / Approved；需用户明确批准后启动）
+**本阶段性质:** 证据 / 设计阶段 — **不**改 schema、**不**新增 migration、**不**导入数据集、
+**不**实现多书生产功能。正式执行范围以**单独重建的** Phase 7 任务书为准。
+**出口条件（2026-09-16 复审修正 R-01）:** 本阶段必须在出口处给出显式决策 —— Phase 7 判定
+「迁移链修复」与「Vocabulary Books 实现」能否安全留在**同一个有界 Phase**；若属可以独立审核的
+高风险变更，必须在 **Phase 8 实现开始之前**再次拆分路线图。**Phase 编号不受保护**，
+有界范围与可审核性优先；本次修订不预先新增 Phase 编号。
 **可依赖的已批准资产:** `ExecutionContext.userId` 权威身份、`UserRepositoryPort` /
 `MemoryRepositoryPort`、`GetUserContextUseCase` / `UpdateLearningProfileUseCase` /
 `RememberUserFactUseCase`、有界确定性 Memory 选择、canonical State vs Memory 所有权、
@@ -409,9 +437,39 @@ Assistant learner-context 集成、Phase 5 Trace 基础设施（见 `handoffs/ph
 **完成日期:** —
 **审核:** ⏳
 
+> **方向变更记录（2026-09-16）。** 本 Phase 此前被规划为「学习路径 Agent」。
+> 该方向在 Phase 7 实现开始前被退役：**不会**建立网站级 / master Learning Path Agent。
+> 历史记录（Phase 1 版本的 `MIGRATION_PLAN.md` / `TARGET_ARCHITECTURE.md`、
+> ADR-002 / ADR-005 的后续影响叙述、`phase-6-task.md` / `phase-6-handoff.md` /
+> `phase-6-review.md` 中的 Phase 7 交接说明、`MEMORY_DESIGN.md` §19）保持原样作为历史证据。
+> 取代范围与当前方向见 `DECISIONS.md` ADR-015 / ADR-016。
+
 ---
 
-## Phase 8：测试与可靠性加固
+## Phase 8：Vocabulary Books Implementation
+
+**状态:** Not Started（前置条件：Phase 7 Approved；本阶段需先处置阻塞安全 schema 演进的
+Prisma 迁移链问题）
+**范围门禁（复审修正 R-01）:** 仅当 Phase 7 判定"迁移链修复 + Books 实现可留在同一个有界 Phase"
+时才按单阶段执行；否则先按 Phase 7 的出口决策拆分路线图。
+**迁移验证门（复审修正 R-02）:** 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，
+迁移正确性与可复现性（真实数据库验证）就是**本阶段**的验收门禁，不得推迟到 Phase 13。
+**开始日期:** —
+**完成日期:** —
+**审核:** ⏳
+
+---
+
+## Phase 9：Themed Packs Convergence
+
+**状态:** Not Started（前置条件：Phase 8 Approved）
+**开始日期:** —
+**完成日期:** —
+**审核:** ⏳
+
+---
+
+## Phase 10：Reliability, Ownership & Architecture Convergence
 
 **状态:** Not Started
 **开始日期:** —
@@ -420,9 +478,39 @@ Assistant learner-context 集成、Phase 5 Trace 基础设施（见 `handoffs/ph
 
 ---
 
-## Phase 9：部署与作品集包装
+## Phase 11：AI Coach Foundation Refactor
 
 **状态:** Not Started
 **开始日期:** —
 **完成日期:** —
 **审核:** ⏳
+
+---
+
+## Phase 12：Agentic AI Coach
+
+**状态:** Not Started（**刻意延后**；只在产品行为确实需要动态决策时评估）
+**开始日期:** —
+**完成日期:** —
+**审核:** ⏳
+
+---
+
+## Phase 13：Production & Portfolio Hardening
+
+**状态:** Not Started（路线图的终止阶段）
+**迁移完整性定位（复审修正 R-02）:** 本阶段只做**全新环境复验**（部署、迁移执行、备份 / 回滚、
+生产就绪）；迁移正确性的**首次建立点必须更早**——由修复 / 变更迁移的那个已批准 Phase 承担。
+**开始日期:** —
+**完成日期:** —
+**审核:** ⏳
+
+---
+
+## 历史提案（已退役 / 已取代）
+
+以下标题曾出现在本文件中，**不是**当前路线图的一部分。保留名称仅为可追溯性：
+
+- ~~Phase 7：学习路径 Agent~~ — 于 2026-09-16 退役，见 `DECISIONS.md` ADR-015。
+- ~~Phase 8：测试与可靠性加固~~ — 由当前 Phase 10 承担，见 `MASTER_PLAN.md`。
+- ~~Phase 9：部署与作品集包装~~ — 由当前 Phase 13 承担，见 `MASTER_PLAN.md`。

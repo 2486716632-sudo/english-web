@@ -458,11 +458,11 @@ class DeepSeekClient implements AIClientPort {
 | 维度 | Workflow（Use Case 内部机制） | Agent |
 |------|----------------------------|-------|
 | **路径确定性** | 步骤硬编码 | 步骤由 LLM 动态决定 |
-| **适用场景** | 需要步骤级 Trace/恢复/重试的确定性流程 | 学习路径规划、个性化推荐 |
+| **适用场景** | 需要步骤级 Trace/恢复/重试的确定性流程 | 步骤确实无法预先确定、且产品行为要求动态决策的场景（本项目当前**没有**已批准的 Agent 阶段） |
 | **状态管理** | 步骤级状态 | 可能需要多轮状态维护 |
 | **可测试性** | 高（步骤明确） | 低（路径不确定） |
 | **成本** | 可预测 | 不可预测 |
-| **当前阶段** | Phase 4 开始引入 | Phase 7 预留 |
+| **当前阶段** | Phase 4 开始引入 | 延后：当前**没有**任何已批准的 Agent 阶段；实现阶段归 `MASTER_PLAN.md` / 已批准任务书 |
 
 ### 当前实例的判断
 
@@ -474,7 +474,7 @@ class DeepSeekClient implements AIClientPort {
 | Listening Scene Generation | Use Case + Workflow | refill 含多步（AI+DB+TTS），需重试 |
 | Theme Pack Generation | Use Case + Workflow | 3 步 AI 调用串联 |
 | Coach 两步对话 | Use Case + Workflow | 两步 AI 调用，冻结延迟处理 |
-| Personalized Learning Path | Agent (Phase 7) | 动态路径，AI 决定步骤 |
+| ~~Personalized Learning Path~~ | ~~Agent (Phase 7)~~ | **已退役**（2026-09-16，ADR-015）：不建立网站级 / master Learning Path Agent |
 
 ---
 
@@ -916,10 +916,11 @@ class StructuredOutputHandler {
 - `domain/memory/` — 记忆模型
 - `infrastructure/memory/` — 记忆存储
 
-### 14.4 RAG（Phase 7）
+### 14.4 RAG（延后 — 实现阶段归路线图）
 
 - `infrastructure/rag/` — 知识检索基础设施
-- 当前不引入
+- 当前不引入；只在**被验证的检索需求**下评估（ADR-015）
+- **与 Agent 准入无关**：检索可以由**确定性 Workflow** 承担，不需要 Agent（见 APP-004）
 
 ### 14.5 Evaluation（Phase 2）
 
@@ -927,10 +928,11 @@ class StructuredOutputHandler {
 - 针对当前代码位置建立 characterization baseline
 - 不提前创建 Domain 实现
 
-### 14.6 Agent（Phase 7）
+### 14.6 Agent（延后 — 实现阶段归路线图）
 
 - `application/agents/` — Agent 实现
-- 当前不引入任何 Agent 框架
+- 当前不引入任何 Agent 框架；只作为 **AI Coach** 的有界能力评估，且必须在**已明确批准的
+  Phase / 任务书**内进行（ADR-015）。具体阶段由 `MASTER_PLAN.md` 拥有，不写死在本文件。
 
 ---
 
@@ -975,7 +977,7 @@ english-web/
 │   │   │   ├── coach/
 │   │   │   ├── scene/
 │   │   │   └── assistant/
-│   │   ├── agents/                  # Agent 定义 (Phase 7, 预留)
+│   │   ├── agents/                  # Agent 定义 (预留 — 仅在已批准 Phase/任务书明确要求时)
 │   │   └── dto/                     # 数据传输对象
 │   │
 │   ├── domain/                      # Layer 3: Domain Layer 【新增】
@@ -1050,9 +1052,13 @@ english-web/
 | Phase 4 | `application/workflows/`, `application/prompts/`, `domain/{reading,listening}/`, `infrastructure/tts/`, `infrastructure/storage/` | 同上 | `features/listening/` |
 | Phase 5 | `infrastructure/telemetry/` | 同上 | — |
 | Phase 6 | `domain/user/`, `domain/memory/`, `infrastructure/db/repository/` | 同上 | `lib/` |
-| Phase 7 | `application/agents/`, `infrastructure/rag/` | 同上 | — |
-| Phase 8 | — | 同上 | — |
-| Phase 9 | `docs/deployment/` | 同上 | — |
+| Phase 7 | 设计文档（不新建源码目录） | 同上 | — |
+| Phase 8 | 按已批准的 Vocabulary Books 任务书 | 同上 | — |
+| Phase 9 | 按已批准的 Themed Packs 任务书 | 同上 | — |
+| Phase 10 | — | 同上 | — |
+| Phase 11 | 按已批准的 AI Coach 重构任务书 | 同上 | — |
+| Phase 12 | `application/agents/`（仅当该阶段获批需要时） | 同上 | — |
+| Phase 13 | `docs/deployment/` | 同上 | — |
 
 ---
 
@@ -1065,9 +1071,17 @@ english-web/
 | **4** | 重构一条 Pipeline 样板 | Reading Pipeline 完整迁移 |
 | **5** | Trace 与可观测性 | Trace ID 贯穿、Logger、调用链 |
 | **6** | 用户状态与记忆系统 | User 模型、会话记忆、偏好 |
-| **7** | 学习路径 Agent | Agent 运行时、学习路径规划 |
-| **8** | 测试与可靠性加固 | 补齐测试、安全、边界处理 |
-| **9** | 部署与作品集包装 | 部署、安全、演示数据、README、架构图、面试材料 |
+| **7** | Vocabulary Platform Design & Data Provenance | 现状审计、Books / Packs 目标模型、数据集 provenance 与许可审查 |
+| **8** | Vocabulary Books Implementation | Book 模型、导入管线、选书体验、user-scoped 复习归属 |
+| **9** | Themed Packs Convergence | Default / Custom Packs 归位到已批准架构 |
+| **10** | Reliability, Ownership & Architecture Convergence | 归属缺口、真实测试、CI、安全边界 |
+| **11** | AI Coach Foundation Refactor | 先重构既有 Coach 到已批准架构 |
+| **12** | Agentic AI Coach | 有界 Agent 能力（仅在产品需要动态决策时） |
+| **13** | Production & Portfolio Hardening | 部署、安全、演示数据、README、架构图、面试材料 |
+
+> Phase 7–13 由 **post-Phase-6 路线重新基线**（2026-09-16）确定；权威路线图归
+> `MASTER_PLAN.md`，不在本文件重述。旧表曾把 Phase 7 记为「学习路径 Agent」，
+> 该方向已被退役（ADR-015）。
 
 ---
 
@@ -1111,7 +1125,7 @@ english-web/
 | TBD-4 | Prompt 版本管理自动化程度 | Phase 3 | 先用人工方式 |
 | TBD-5 | 音频存储长期方案 | Phase 4 | 本地 vs CDN vs S3 |
 | TBD-6 | 用户模型 ID 策略 | Phase 6 | UUID vs cuid |
-| TBD-7 | Agent 运行时框架 | Phase 7 | LangChain vs 自研 |
+| TBD-7 | Agent 运行时框架（若确有必要） | 见 `MASTER_PLAN.md`（当前编号为 Phase 12） | LangChain vs 自研；只有产品需要动态决策时才评估 |
 | TBD-8 | ECDICT 音标数据迁移到 DB | Phase 4 | 当前 JSON 读取性能可接受 |
 
 ---
@@ -1122,3 +1136,4 @@ english-web/
 |------|------|------|
 | 2026-07-29 | 初始定稿 | Phase 1 初次产出 |
 | 2026-07-29 | **修正版** — 依赖模型改为 Port/Adapter + Composition Root；Domain 去除 AI Client/Prompt；Prompt 归 Application；Application Use Case 作为入口；Workflow 改为可选；纯 CRUD 限缩；移除 chatFresh；区分解析恢复与网络重试；Phase 9 恢复 | 审核 Changes Requested |
+| 2026-09-16 | **post-Phase-6 路线重新基线** — future phase 引用重建（Phase 7 由「学习路径 Agent」改为「Vocabulary Platform Design & Data Provenance」；Phase 8/9 改为 Vocabulary Books / Themed Packs；新增 Phase 10–13）；架构本体与 Phase 0–6 结论未变 | 产品方向重新确认（`DECISIONS.md` ADR-015 / ADR-016） |

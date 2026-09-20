@@ -529,3 +529,125 @@ Phase 6 建立项目**第一个持久化用户态基础设施**，并固定以�
   internal `UserId`）；`User` / `UserProfile` / `UserMemory` 的表结构不需要改变，但
   **不保证**只改动单个文件（见第 2 条）。
 - Phase 7 若需要语义检索或 LLM 自主记忆，必须作为独立阶段设计与授权（不在本 ADR 范围内）。
+
+---
+
+## ADR-015: Post-Phase-6 路线图重新基线（Learning Path Agent 退役 / Vocabulary 优先 / Agentic AI Coach 延后）
+
+**日期:** 2026-09-16
+**状态:** Accepted（post-Phase-6 权威规划修订；**Phase 7 尚未开始**，本 ADR 不授予任何实现授权）
+
+**决定:**
+
+Phase 6 通过外部批准、进入 Phase 7 之前，产品的未来方向被重新确认，并据此重建路线图：
+
+1. **退役「网站级 / master Learning Path Agent」路线。**
+   不会建立横跨 Vocabulary、Reading、Listening、AI Coach 的学习路径编排 Agent。
+   旧的「Phase 7 = 学习路径 Agent」在未来路线图中的位置被取消。
+2. **Vocabulary 平台工作成为 Phase 6 之后的下一优先级。**
+   Phase 7 = `Vocabulary Platform Design & Data Provenance`（证据 / 设计阶段），
+   Phase 8 = `Vocabulary Books Implementation`，Phase 9 = `Themed Packs Convergence`。
+3. **Agentic AI 工作被刻意延后到有界的后续 AI Coach 阶段。**
+   AI Coach 成为唯一候选的 Agentic 子系统，但必须先经过 Phase 11
+   （`AI Coach Foundation Refactor`），再接 Phase 12（`Agentic AI Coach`）；
+   Phase 12 只做产品行为确实需要动态决策的部分。
+4. **高级技术不构成路线图义务。** RAG、MCP、LangGraph、向量数据库、fine-tuning
+   只在出现**被验证的真实需求**时评估；不得为了让项目看起来更高级而变成交付承诺。
+5. **历史叙事保持不动。** 本 ADR 只取代 ADR-002 / ADR-005 等既有 ADR 中关于
+   「Agent 在 Phase 7 引入」的**未来路线图后果**。这些既有 ADR 的历史理由、以及
+   Phase 0–6 已批准的任务 / 交接 / 评审记录，均保留为历史证据，不被改写。
+   Phase 0–6 的已批准含义、编号与范围**不因本 ADR 改变**。
+6. **Phase 数量从属于范围。** 阶段数不是目标；拆分 / 合并 / 重排必须走高阶治理流程
+   （任务书 + 外部审核 + 用户明确批准），不得在阶段内夹带实现。
+7. **冻结模块的保护语义明确化（默认冻结）。**
+   AI Coach（口语对练 + 场景系统）、Words 页面 UI、`prisma/schema.prisma` **默认保持冻结**；
+   只有当**当前已批准的 Phase 任务书**明确包含该修改、**且**用户明确授权时，
+   才可在任务书限定的范围内做最小修改。本 ADR **不**授予任何实现权限。
+
+**理由:**
+
+- 退役的方向在**实现开始之前**就被取消，因此不存在"半成品 Agent"或需要回滚的代码；
+  但**路线图文档**若不重建，后续每一个 Phase 都会基于已失效的方向重建命令。
+- Phase 6 已建立显式 `userId` 抽象与持久用户状态；真正缺少的不是 Agent 能力，而是
+  **Vocabulary 产品域本身的设计**（Book / Pack 语义、数据来源合规、用户学习状态归属）。
+- 项目的既有原则是"架构复杂度只在解决真实产品或工程问题时才引入"。把 Agentic 工作
+  排在 Vocabulary 之后，使 Agent 有真实产品需求作为前提，而不是路线图中的默认占位。
+- 明确区分"默认冻结"与"永久冻结"，可以把保护语义从措辞（"严格冻结"）变成可执行条件
+  （当前已批准任务书 + 用户明确授权），避免以后用"历史措辞"或"看起来需要"绕过授权。
+
+**后续影响:**
+
+- `MASTER_PLAN.md` 的 Phase 表与叙事、`MIGRATION_PLAN.md` 的 future 迁移路径、
+  `PHASE_STATUS.md` 的 Phase 7–13 状态、`TARGET_ARCHITECTURE.md` 的 future phase 引用、
+  `ARCHITECTURE_RULES.md` 的适用范围与 APP-004 已同步。
+- Phase 7 的执行任务书必须在本修订经外部评审后**单独重建**（`PHASE_EXECUTION_PROTOCOL.md` §4）。
+- 本修订**不**创建 `docs/refactor/tasks/phase-7-task.md`，**不**创建 Phase 7 源码 / schema /
+  migration / handoff / review。
+- 后续若要恢复"网站级 Agent"或引入 MCP / RAG / 向量库，属于**新的产品决策**，
+  需要新的 ADR 与用户明确批准，不能引用本 ADR 覆盖。
+
+**修正记录 — v2（2026-09-16，外部复审 Minor Changes Requested 后）：**
+
+1. **Phase 8 范围 / 拆分决策门（R-01）**：不在本 ADR 内机械拆分 Phase 8。Phase 7 的出口必须是
+   一个显式决策 —— 判定「迁移链修复」与「Vocabulary Books 实现」能否安全留在同一个有界 Phase；
+   若属可以独立审核的高风险变更，必须在 Phase 8 实现开始前再次拆分路线图。**Phase 编号不受保护。**
+   见 `MASTER_PLAN.md` / `MIGRATION_PLAN.md` / `PHASE_STATUS.md` 的 Phase 7 出口条件。
+2. **迁移正确性同阶段验收（R-02）**：修复迁移链或变更 `schema.prisma` / migrations 的那个
+   已批准 Phase，必须**自行**通过迁移正确性与可复现性的真实数据库验收；Phase 13 只做**复验**，
+   不得成为正确性首次建立点。见 `EVALUATION_BASELINE.md` 的"迁移验证门"。
+3. **APP-004 阶段无关化（R-03）**：架构规则只拥有**不变式**，实现阶段归 `MASTER_PLAN.md` /
+   `PHASE_STATUS.md` / 已批准任务书，不再把阶段编号写进规则。
+4. **RAG / MCP / 语义与向量检索与 Agent 准入门槛解耦（R-05）**：这些能力**不要求** Agent 行为，
+   因此**不适用** Agent 特有的"动态决策"准入条件，按各自的产品 / 工程理由独立评估
+   （见 `ARCHITECTURE_RULES.md` APP-004 第 4 条）；它们仍然都不是路线图的强制交付物。
+
+---
+
+## ADR-016: Vocabulary 的两个产品域（Vocabulary Books vs Themed Packs）与数据来源 / 许可前置审查
+
+**日期:** 2026-09-16
+**状态:** Accepted（post-Phase-6 权威规划修订；产品域决策与数据合规前置条件）
+
+**决定:**
+
+1. **Vocabulary 包含两个**不同的产品域**，不得为了架构整齐而合并成一个通用词汇抽象：**
+   - **Vocabulary Books** — 结构化、可选择的词书；
+   - **Themed Packs** — 主题词包，包含 **Default Packs** 与 **User-created Custom Packs**。
+
+   两者可以共享底层 lexical 基础设施（同一个 `Word` 概念、同一套复习算法），
+   但**产品 / 领域概念保持独立**，直到后续证据明确支持收敛。
+2. **Default Packs 与 User-created Custom Packs 是两种不同的产品行为**，
+   不能因为它们共享生成 / 存储手段而被当作同一种东西。
+3. **当前以 IELTS 为中心的词汇实现不是目标成熟形态。**
+   现有实现把词书语义压在 `Word.difficulty` / `Word.source` / `Word.theme` 的组合上
+   （例如队列查询使用 `source = 'ielts' AND theme IS NULL`，AI 生成词包写入
+   `source = 'generated'` / `difficulty = 'CUSTOM'`）。这只作为**现状证据**，
+   不构成未来的领域模型。
+4. **外部 Vocabulary 数据集的引入以文档化的合规审查为前置条件。**
+   每个候选数据集在被批准导入之前必须记录：provenance、上游来源、许可 / 使用条件、
+   转换方法、版本、质量检查。**"上游仓库是公开的"不构成导入理由或授权。**
+5. **候选方向只是候选。** CET-4 / CET-6、精选 IELTS 词表、General English 核心词表、
+   Business English 等是 **Phase 7 的研究对象**，不是已批准的导入；
+   **具体书单与数据集不因本次路线修订而确定**。
+6. **本 ADR 不决定实现形状。** `VocabularyBook` / `VocabularyBookEntry` 的表结构、
+   导入管线形态、选书 UI、以及 `WordReview` 的 user-scoped 归属方案，
+   全部留给 Phase 7 设计 + 后续已批准的任务书。
+
+**理由:**
+
+- Books 与 Packs 的**生命周期、所有权和产品预期不同**：词书是可选择的、有稳定身份的
+  结构化目录（且其内容来自需要许可审查的外部数据集）；词包（尤其自定义词包）是
+  用户驱动、内容可生成的。把它们统一成一个抽象，会迫使后续实现为一个不存在的
+  "通用词汇容器" 服务，并掩盖数据来源合规问题。
+- 在 Phase 7 之前不锁定书单与数据集，是为了避免"先导入再补许可"的顺序错误——
+  这类错误在数据层面很难回滚。
+- 保留共享 lexical 基础设施，是为了不重复实现 SM-2 与复习队列（Phase 2 已验证的
+  受保护基线）。
+
+**后续影响:**
+
+- Phase 7 必须把 Books / Packs 的目标模型与数据来源审查**分别**产出，而不是一份合并设计。
+- Phase 8（Books）与 Phase 9（Packs）是**两个不同的阶段**，不得合并为一个"Vocabulary 大阶段"。
+- 任何 Vocabulary 数据导入 PR 必须引用本 ADR 第 4 条并附来源 / 许可记录，
+  否则视为超出范围。
+- 若未来证据表明 Books 与 Packs 应当收敛，需要新的 ADR 记录证据与取舍，不能静默合并。
