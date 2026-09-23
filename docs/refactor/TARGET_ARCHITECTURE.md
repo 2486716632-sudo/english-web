@@ -1053,14 +1053,15 @@ english-web/
 | Phase 5 | `infrastructure/telemetry/` | 同上 | — |
 | Phase 6 | `domain/user/`, `domain/memory/`, `infrastructure/db/repository/` | 同上 | `lib/` |
 | Phase 7 | 设计文档（不新建源码目录） | 同上 | — |
-| Phase 8 | 按已批准的 Vocabulary Books 任务书 | 同上 | — |
-| Phase 9 | 按已批准的 Themed Packs 任务书 | 同上 | — |
-| Phase 10 | `tests/eval/` 扩展、评估 harness 约定目录（按已批准任务书） | 同上 | — |
-| Phase 11 | 按已批准的 AI Coach 重构任务书 | 同上 | — |
-| Phase 12 | `application/retrieval/`、`infrastructure/retrieval/`（仅当该阶段获批需要时） | 同上 | — |
-| Phase 13 | `application/agents/`（仅当该阶段获批需要时） | 同上 | — |
-| Phase 14 | `infrastructure/mcp/`（MCP adapter；核心层保持协议无关） | 同上 | — |
-| Phase 15 | `docs/deployment/` | 同上 | — |
+| Phase 8 | 迁移链修复 / 可复现基线（**无新增应用目录**；仅 `prisma/migrations/**` 治理与验证） | 同上 | — |
+| Phase 9 | 按已批准的 Vocabulary Books 任务书 | 同上 | — |
+| Phase 10 | 按已批准的 Themed Packs 任务书 | 同上 | — |
+| Phase 11 | `tests/eval/` 扩展、评估 harness 约定目录（按已批准任务书） | 同上 | — |
+| Phase 12 | 按已批准的 AI Coach 重构任务书 | 同上 | — |
+| Phase 13 | `application/retrieval/`、`infrastructure/retrieval/`（仅当该阶段获批需要时） | 同上 | — |
+| Phase 14 | `application/agents/`（仅当该阶段获批需要时） | 同上 | — |
+| Phase 15 | `infrastructure/mcp/`（MCP adapter；核心层保持协议无关） | 同上 | — |
+| Phase 16 | `docs/deployment/` | 同上 | — |
 
 ---
 
@@ -1076,12 +1077,12 @@ english-web/
 | **7** | Vocabulary Platform Design & Data Provenance | 现状审计、Books / Packs 目标模型、数据集 provenance 与许可审查 |
 | **8** | Vocabulary Books Implementation | Book 模型、导入管线、选书体验、user-scoped 复习归属 |
 | **9** | Themed Packs Convergence | Default / Custom Packs 归位到已批准架构 |
-| **10** | Reliability, Ownership & Evaluation Platform Convergence | 归属缺口、真实测试、CI、安全边界 + 评估 / 实验基础设施 |
-| **11** | AI Coach Foundation Refactor | 先重构既有 Coach 到已批准架构，并建立确定性 Coach 评估基线 |
-| **12** | Retrieval & Knowledge Engineering | 设计、实现并评估检索层；RAG 生产采纳由证据决定 |
-| **13** | Agentic AI Coach & Tool System | 有界 Agent + 工具系统（相对确定性基线对照评估） |
-| **14** | MCP Interoperability, AgentOps & Safety | 合法 MCP 互操作边界 + AgentOps / 安全控制 |
-| **15** | Production, Benchmark & Portfolio Hardening | 部署、基准 / 实验汇总、作品集与面试材料 |
+| **11** | Reliability, Ownership & Evaluation Platform Convergence | 归属缺口、真实测试、CI、安全边界 + 评估 / 实验基础设施 |
+| **12** | AI Coach Foundation Refactor | 先重构既有 Coach 到已批准架构，并建立确定性 Coach 评估基线 |
+| **13** | Retrieval & Knowledge Engineering | 设计、实现并评估检索层；RAG 生产采纳由证据决定 |
+| **14** | Agentic AI Coach & Tool System | 有界 Agent + 工具系统（相对确定性基线对照评估） |
+| **15** | MCP Interoperability, AgentOps & Safety | 合法 MCP 互操作边界 + AgentOps / 安全控制 |
+| **16** | Production, Benchmark & Portfolio Hardening | 部署、基准 / 实验汇总、作品集与面试材料 |
 
 > Phase 7–15 由 **post-Phase-6 路线重新基线**（2026-09-16）与 **第二次路线修订**
 > （2026-09-20，`DECISIONS.md` ADR-017 / ADR-018）确定；权威路线图归
@@ -1130,7 +1131,7 @@ english-web/
 | TBD-4 | Prompt 版本管理自动化程度 | Phase 3 | 先用人工方式 |
 | TBD-5 | 音频存储长期方案 | Phase 4 | 本地 vs CDN vs S3 |
 | TBD-6 | 用户模型 ID 策略 | Phase 6 | UUID vs cuid |
-| TBD-7 | Agent 运行时框架（若确有必要） | 见 `MASTER_PLAN.md`（当前编号为 Phase 13） | LangChain vs 自研；只有产品需要动态决策时才评估 |
+| TBD-7 | Agent 运行时框架（若确有必要） | 见 `MASTER_PLAN.md`（当前编号为 **Phase 14**） | LangChain vs 自研；只有产品需要动态决策时才评估 |
 | TBD-8 | ECDICT 音标数据迁移到 DB | Phase 4 | 当前 JSON 读取性能可接受 |
 
 ---
@@ -1143,3 +1144,4 @@ english-web/
 | 2026-07-29 | **修正版** — 依赖模型改为 Port/Adapter + Composition Root；Domain 去除 AI Client/Prompt；Prompt 归 Application；Application Use Case 作为入口；Workflow 改为可选；纯 CRUD 限缩；移除 chatFresh；区分解析恢复与网络重试；Phase 9 恢复 | 审核 Changes Requested |
 | 2026-09-16 | **post-Phase-6 路线重新基线** — future phase 引用重建（Phase 7 由「学习路径 Agent」改为「Vocabulary Platform Design & Data Provenance」；Phase 8/9 改为 Vocabulary Books / Themed Packs；新增 Phase 10–13）；架构本体与 Phase 0–6 结论未变 | 产品方向重新确认（`DECISIONS.md` ADR-015 / ADR-016） |
 | 2026-09-20 | **第二次路线修订（已批准 / 生效）** — future phase 引用再次重建（Phase 10 扩展为 Reliability, Ownership & Evaluation Platform Convergence；Phase 11 增加确定性 Coach 评估基线；新增 Phase 12 Retrieval & Knowledge Engineering、Phase 13 Agentic AI Coach & Tool System、Phase 14 MCP Interoperability / AgentOps / Safety；旧终止阶段加强为 Phase 15 Production, Benchmark & Portfolio Hardening）；架构本体与 Phase 0–11 结论未变 | 作品集级 AI 应用工程证据成为显式成功要求（`DECISIONS.md` ADR-017 / ADR-018，均为 **Accepted**；2026-09-20 外部评审 Approved） |
+| 2026-09-23 | **阶段拆分激活（行政收尾）** — future phase 引用再次重建：原 Phase 8 拆分为 **Phase 8 Migration Chain Repair & Reproducible Baseline** 与 **Phase 9 Vocabulary Books Implementation**，**Phase 10 Themed Packs Convergence**；原 Phase 10–15 的意图与出口条件**全部保留**，编号 +1 顺延为 **Phase 11–16**；架构本体与 Phase 0–7 结论未变 | Phase 7 于 2026-09-23 经外部评审 v5 **Approved**（Blocking Issues: None），其出口决策（`DECISIONS.md` ADR-022）被激活 |

@@ -314,27 +314,28 @@ C2 访谈类型：
 
 | 行为 | 未覆盖原因 | 建议覆盖 Phase |
 |------|-----------|---------------|
-| 学习队列计算（combined queue 的 review/new 混合逻辑） | 依赖 Prisma 数据库查询，不易隔离测试 | Phase 10 |
-| API Route 的请求处理（words POST, reading GET 等） | 依赖 Next.js API 运行时和数据库 | Phase 10 |
+| 学习队列计算（combined queue 的 review/new 混合逻辑） | 依赖 Prisma 数据库查询，不易隔离测试 | Phase 11 |
+| API Route 的请求处理（words POST, reading GET 等） | 依赖 Next.js API 运行时和数据库 | Phase 11 |
 | `/api/assistant` API Route 自动化测试 | 缺少可注入 AI Client | Phase 3 |
 | refillSubCategory 补货逻辑 | 依赖 DB + AI + TTS，全部外部依赖 | Phase 4+ |
 | Pronunciation / TTS 功能 | 依赖外部 TTS 服务和文件系统 | Phase 4+ |
-| AI Coach 两步对话流程 | 冻结模块，且依赖真实 AI 调用 | Phase 11（AI Coach Foundation Refactor） |
+| AI Coach 两步对话流程 | 冻结模块，且依赖真实 AI 调用 | Phase 12（AI Coach Foundation Refactor） |
 | Reading Pipeline（rss-parser → AI → DB） | 依赖外部 RSS 和 AI 服务 | Phase 4 |
-| UI 组件渲染行为 | E2E 测试需要 Playwright 配置和浏览器 | Phase 10 |
-| 页面级交互（路由、状态、滚动恢复） | E2E 测试 | Phase 10 |
+| UI 组件渲染行为 | E2E 测试需要 Playwright 配置和浏览器 | Phase 11 |
+| 页面级交互（路由、状态、滚动恢复） | E2E 测试 | Phase 11 |
 | 模块级缓存过期行为 | 当前实现不过期 | Phase 6 |
-| 数据库迁移正确性 | 需要可写数据库连接；且 `20260609000001_baseline` 迁移链本身损坏 | **修复 / 变更迁移的那个已批准 Phase（当前规划为 Phase 8，或其拆分后继阶段）——同阶段验收**；Phase 15 只做全新环境复验 |
+| 数据库迁移正确性 | 需要可写数据库连接；且 `20260609000001_baseline` 迁移链本身损坏 | **修复 / 变更迁移的那个已批准 Phase —— 当前即 Phase 8（迁移链修复 / 可复现基线）—— 同阶段验收**；Phase 16 只做全新环境复验 |
 
 > **2026-09-16 说明：** 上表的「建议覆盖 Phase」是**未来指向**，已按 post-Phase-6
-> 路线重新基线更新（旧值 Phase 8 / Phase 9 / Phase 7+ 分别对应现在的 Phase 10 /
-> Phase 15 / Phase 11）。已经发生过的历史指向（Phase 3 / Phase 4 / Phase 6）保持原样。
+> 路线重新基线更新（旧值 Phase 8 / Phase 9 / Phase 7+ 分别对应当时的 Phase 10 / Phase 15 / Phase 11；
+> **2026-09-23 拆分激活后**这些现为 Phase 11 / Phase 16 / Phase 12）。
+> 已经发生过的历史指向（Phase 3 / Phase 4 / Phase 6）保持原样。
 >
 > **2026-09-20 补充（第二次路线修订 — 已批准 / 生效）：** 评估已被提升为
 > **系统级跨领域能力**（ADR-017，**Accepted**；2026-09-20 外部评审 Approved）。
-> 评估 harness / golden-set 约定 / 实验记录约定的**基础设施**归 Phase 10；确定性 Coach
-> 基线归 Phase 11；检索评估归 Phase 12；Agent / tool 评估归 Phase 13；基准 / 实验汇总归
-> Phase 15。逐条标准见 `PORTFOLIO_ENGINEERING_CRITERIA.md`。
+> 评估 harness / golden-set 约定 / 实验记录约定的**基础设施**归 **Phase 11**；确定性 Coach
+> 基线归 **Phase 12**；检索评估归 **Phase 13**；Agent / tool 评估归 **Phase 14**；基准 / 实验汇总归
+> **Phase 16**。逐条标准见 `PORTFOLIO_ENGINEERING_CRITERIA.md`。
 
 ### 迁移验证门（2026-09-16 复审修正 R-02）
 
@@ -345,13 +346,14 @@ C2 访谈类型：
    正确性的**首次建立点不得晚于该 Phase 的收尾**，不得顺延到后续阶段。
 2. **真实数据库验证属于该 Phase 的证据。** 与该 schema 变更相称的真实 DB / 集成验证
    （在隔离或临时数据库上跑完整迁移链、`prisma validate`，以及必要的迁移回放 /
-   可复现性检查）是该 Phase 的验收证据，**不得**推迟到 Phase 15 才第一次执行。
-3. **Phase 15 的定位是复验。** Phase 15 可以在**全新环境**上复验部署、迁移执行、
+可复现性检查）是该 Phase 的验收证据，**不得**推迟到 **Phase 16** 才第一次执行。
+3. **Phase 16 的定位是复验。** Phase 16 可以在**全新环境**上复验部署、迁移执行、
    备份 / 回滚与生产就绪，但**不是**迁移正确性第一次被建立的地方。
 4. **历史不被改写。** 本门禁只约束**未来**的迁移变更；Phase 2–6 的历史记录保持不变。
 
-> 与 R-01 的关系：若 Phase 7 判定需要拆分 Phase 8，则迁移链修复与 Books 实现各自作为
-> 独立可审核的 Phase，**各自**承担本门禁（见 `MASTER_PLAN.md` 的 Phase 7 出口决策门）。
+> 与 R-01 的关系：Phase 7 **已判定需要拆分**（2026-09-23 激活）。因此迁移链修复（**Phase 8**）
+> 与 Books 实现（**Phase 9**）各自作为独立可审核的 Phase，**各自**承担本门禁
+> （见 `MASTER_PLAN.md` 的 Phase 7 出口决策门）。
 
 ---
 
@@ -370,7 +372,7 @@ C2 访谈类型：
 - **迁移验证**: 重构 Reading API 后，API 冒烟脚本应继续通过
 - **行为一致性**: SM-2 测试确保算法行为不变；AI 评估 fixture 验证输出格式不变
 
-### Phase 10（Reliability, Ownership & Evaluation Platform Convergence）
+### Phase 11（Reliability, Ownership & Evaluation Platform Convergence）
 
 - 本阶段是所有测试的起点和基线
 - 当前的 `characterization test` 需要在重构后升级为 `contract test`
@@ -378,19 +380,19 @@ C2 访谈类型：
 - 新增**评估 / 实验基础设施**：评估 harness、golden-set / fixture 约定、实验记录约定、
   trace / metrics 导出策略、延迟 / 错误 / token / 成本测量口径
 
-### Phase 11（AI Coach Foundation Refactor）
+### Phase 12（AI Coach Foundation Refactor）
 
-- 建立**确定性 Coach 评估基线**（golden set + 基线测量），供 Phase 12 / 13 对比
+- 建立**确定性 Coach 评估基线**（golden set + 基线测量），供 Phase 13 / 14 对比
 
-### Phase 12（Retrieval & Knowledge Engineering）
+### Phase 13（Retrieval & Knowledge Engineering）
 
 - 定义检索评估数据集，并对检索候选（结构化 / 词法 / 语义 / hybrid / rerank）做对照评估；
   记录检索指标、延迟与成本影响，并产出架构决策
 
-### Phase 13（Agentic AI Coach & Tool System）
+### Phase 14（Agentic AI Coach & Tool System）
 
-- 定义 Agent / tool 评估数据集与指标；把 Agentic Coach 行为与 Phase 11 的确定性基线对照
+- 定义 Agent / tool 评估数据集与指标；把 Agentic Coach 行为与 Phase 12 的确定性基线对照
 
-### Phase 15（Production, Benchmark & Portfolio Hardening）
+### Phase 16（Production, Benchmark & Portfolio Hardening）
 
 - 汇总基准表与实验报告；复验部署与迁移；产出作品集 / 面试材料

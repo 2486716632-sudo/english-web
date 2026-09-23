@@ -39,10 +39,27 @@
   用同义 Memory 键绕过 canonical User State 所有权，修改 canonical 事实必须走 profile/state 操作。
   已知部署门禁：`prisma/migrations/20260609000001_baseline/migration.sql` 是 Phase 6 之前的
   损坏历史迁移（UTF-16 PowerShell 错误转储）；**完整迁移链的生产部署在独立修复前保持 BLOCKED**。
-- **当前阶段：Phase 7 — Vocabulary Platform Design & Data Provenance — Ready / Not Started**
-  （需用户明确批准后启动；必须先复用 Phase 2–6 受保护基线。标题于 2026-09-16 路线图
-  重新基线时更新。**2026-09-20 第二次路线修订（Phase 10–15）已于 2026-09-20 经外部评审
-  Approved 并生效**（此前以提案状态送审）；见下方两条记录。**Phase 7 仍为 Ready / Not Started。**）
+- **上个阶段：Phase 7 — Vocabulary Platform Design & Data Provenance — ✅ Completed / Approved（2026-09-23）**
+  （v5 外部评审 **Approved，Blocking Issues: None**；B-01…B-10 全部 resolved。
+  审核轨迹：v1 Changes Requested → v2 Changes Requested（B-01…B-04 resolved，B-05 新增）
+  → v3 当时阻断项 resolved → 产品澄清在收尾前重新打开 → v4 Changes Requested（B-06…B-10）
+  → **v5 Approved**。产出：`VOCABULARY_PLATFORM_DESIGN.md` / `VOCABULARY_DATA_PROVENANCE.md` /
+  `VOCABULARY_MIGRATION_STRATEGY.md` / `handoffs/phase-7-handoff.md` /
+  `reviews/phase-7-review.md`；`DECISIONS.md` 的 ADR-019–ADR-022 已由本次收尾转为 **Accepted**。
+  最终设计要点：`Word` 仅词形身份 / 共享词汇内容（非 SRS 归属）；`BookEntry`（**稳定 `entryKey`**，
+  `position` 仅排序）是学习单位与 **SRS 归属 `(userId, bookEntryId)`**；从属
+  `BookEntryMeaning` / `BookEntryExample` 承载规范书内内容（含义项级音标与书内搭配）；
+  **不**做跨书同步 / 传播 / 迁移评分；**允许**带 provenance 与校验门的 AI 富化；
+  数据导入要求 documented provenance 与**项目批准**。）
+- **当前阶段：Phase 8 — Migration Chain Repair & Reproducible Baseline — Ready / Not Started**
+  （2026-09-23 阶段拆分激活：Phase 8 = 迁移链修复 / 可复现基线，**不含**产品功能；
+  **Phase 9 = Vocabulary Books Implementation**，**Phase 10 = Themed Packs Convergence**；
+  原 Phase 10–15 顺延为 Phase 11–16，意图与出口条件全部保留。见 `DECISIONS.md` ADR-022 与
+  `MASTER_PLAN.md` 的 2026-09-23 收尾记录。）
+  标题于 2026-09-16 路线图重新基线时更新；
+  **2026-09-20 第二次路线修订（当时编号为 Phase 10–15）已于 2026-09-20 经外部评审 Approved 并生效**；
+  该次修订的**意图与出口条件**在 2026-09-23 拆分激活后顺延为 **Phase 11–16**（编号变了，内容不变）。
+  下方历史记录中"Phase 7 仍为 Ready / Not Started"是**当时**的事实陈述，保留不改写。）
 
 ### 路线图重新基线记录（2026-09-16，post-Phase-6 行政 / 权威规划修订）
 
@@ -56,7 +73,8 @@
 - **网站级 / master Learning Path Agent 不会建立**（不横跨 Vocabulary / Reading /
   Listening / AI Coach 做学习路径编排）。
 - **Vocabulary 成为下一个产品 / 领域优先级**（Phase 7–9）；**AI Coach 的 Agentic 工作
-  被刻意延后**到独立的后继阶段（`MASTER_PLAN.md` 的 Phase 11 基础重构 / Phase 13 Agentic）。
+  被刻意延后**到独立的后继阶段（`MASTER_PLAN.md` 现行编号：**Phase 12 基础重构 / Phase 14 Agentic**；
+  2026-09-23 拆分激活前为 Phase 11 / Phase 13）。
 - Vocabulary Books 与 Themed Packs 是**两个不同的产品域**，只共享词汇基础设施（ADR-016）。
 - 外部 Vocabulary 数据集的引入以 **provenance / 上游来源 / 许可 / 转换方法 / 版本 /
   质量检查**为前置条件（ADR-016）；CET-4 / CET-6、IELTS 取向、General English、
@@ -69,7 +87,11 @@
 这是一次**文档 / 治理层面的行政修订（administrative / canonical planning amendment）**，
 于 **2026-09-20 经外部评审 Approved（Blocking Issues: None，R-01–R-07 已全部 resolved）**，
 并由行政收尾命令生效（此前以提案状态送审）。它**不是 Phase 实现**，也不是 Phase 7 启动；
-下面的 Phase 10–15 内容现为**已批准的权威路线图**：
+> **编号提示（2026-09-23 拆分激活后）：** 本记录下方按**当时编号（Phase 10–15）**叙述的内容，
+> 其**意图、出口条件、安全要求与评估义务**现已顺延为 **Phase 11–16**；
+> 现行权威编号见本文件下方的 Phase 11–16 章节与 `MASTER_PLAN.md`。
+
+下面的 Phase 10–15 内容（**当时编号**）现为**已批准的权威路线图**：
 
 - **前置基线。** 上一次 post-Phase-6 路线重新基线（提交
   `docs: rebaseline post-phase-6 refactor roadmap`）已提交并推送到远端，成为本次修订的
@@ -457,20 +479,80 @@ B-01–B-05 全部 resolved and accepted；Blocking Issues: None）
 
 ## Phase 7：Vocabulary Platform Design & Data Provenance
 
-**状态:** Ready / **Not Started**（前置条件已满足：Phase 6 Completed / Approved；需用户明确批准后启动）
+**状态:** ✅ **Completed / Approved**（**2026-09-23 经外部评审 v5 Approved，Blocking Issues: None**；
+审核轨迹：v1 Changes Requested → v2 Changes Requested（B-01…B-04 resolved、B-05 新增）
+→ v3 当时阻断项 resolved → 产品澄清在收尾前重新打开 → v4 Changes Requested（B-06…B-10）
+→ **v5 Approved**。完整历史见 `docs/refactor/reviews/phase-7-review.md`）
 **本阶段性质:** 证据 / 设计阶段 — **不**改 schema、**不**新增 migration、**不**导入数据集、
-**不**实现多书生产功能。正式执行范围以**单独重建的** Phase 7 任务书为准。
-**出口条件（2026-09-16 复审修正 R-01）:** 本阶段必须在出口处给出显式决策 —— Phase 7 判定
-「迁移链修复」与「Vocabulary Books 实现」能否安全留在**同一个有界 Phase**；若属可以独立审核的
-高风险变更，必须在 **Phase 8 实现开始之前**再次拆分路线图。**Phase 编号不受保护**，
-有界范围与可审核性优先；本次修订不预先新增 Phase 编号。
+**不**实现多书生产功能。执行范围以已批准任务书 `docs/refactor/tasks/phase-7-task.md` 为准。
+**出口条件（2026-09-16 复审修正 R-01）:** ✅ **已于 2026-09-23 由本阶段判定并激活** ——
+「迁移链修复」与「Vocabulary Books 实现」属于**可以独立审核的高风险变更**，因此拆分：
+**Phase 8 = Migration Chain Repair & Reproducible Baseline**、
+**Phase 9 = Vocabulary Books Implementation**、**Phase 10 = Themed Packs Convergence**，
+原 Phase 10–15 顺延为 Phase 11–16（见 `DECISIONS.md` ADR-022）。
 **可依赖的已批准资产:** `ExecutionContext.userId` 权威身份、`UserRepositoryPort` /
 `MemoryRepositoryPort`、`GetUserContextUseCase` / `UpdateLearningProfileUseCase` /
 `RememberUserFactUseCase`、有界确定性 Memory 选择、canonical State vs Memory 所有权、
 Assistant learner-context 集成、Phase 5 Trace 基础设施（见 `handoffs/phase-6-handoff.md` §9）
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**开始日期:** 2026-09-21
+**设计 / 研究包完成日期:** 2026-09-21（v1）；**2026-09-23 完成 v4 / v5 修正**
+**完成日期:** **2026-09-23**（外部评审 v5 Approved）
+**审核:** ✅ **Approved**（v5；Blocking Issues: None）
+
+### 执行记录（2026-09-21，In Review）
+
+**任务定义:** `docs/refactor/tasks/phase-7-task.md`（提交 `8279dff`，Phase 7 任务基线）
+
+**产出（全部为文档 / 证据，无任何实现）:**
+
+| 文件 | 内容 |
+|------|------|
+| `docs/refactor/VOCABULARY_PLATFORM_DESIGN.md` | 领域分区模型、重叠词语义对比与推荐、分层归属、14 项技术决策研究（含初学者解释） |
+| `docs/refactor/VOCABULARY_DATA_PROVENANCE.md` | 当前 IELTS 管线重建（A/B/C 三类）、字段级归因、遗留 AI 数据分类、外部数据集候选（含许可证据分级）、导入与版本化设计 |
+| `docs/refactor/VOCABULARY_MIGRATION_STRATEGY.md` | 当前 → 目标映射、重复词条与状态归并规则、迁移链损坏处置方向、**Phase 8 拆分决策**、验证策略与风险登记 |
+| `docs/refactor/DECISIONS.md` | ADR-019 / ADR-020 / ADR-021 / ADR-022（均 **Proposed**） |
+| `docs/refactor/handoffs/phase-7-handoff.md` | 本阶段交接 |
+
+**关键结论（供评审）:**
+
+1. 目标模型 = 词条身份 / 内容（逐字段来源标记）/ 词书成员资格 / 词包成员资格 / 学习者状态 / 来源追溯**分区**。
+2. 重叠词（**v4 结论，取代 v1–v3**）：**学习状态属于 `User + BookEntry`**（`(userId, bookEntryId)`）；
+   同一拼写在多本书里是**不同条目、各自独立状态**；**不**传播、**不**合并、**不**做迁移评分；
+   换书后新书条目从"未学习"开始，用户可自行按"已掌握"。`Word` 只保留**词形身份**与共享词汇内容。
+3. 已核实的数据现实：2,849 行仅 2,704 个不同词形；**119 个词跨 IELTS 与主题包**、**26 个词跨多个主题**。
+4. 遗留 AI / ECDICT 数据的成员资格被判定为 **unresolved pending evidence**（倾向 replace），
+   DeepSeek 派生学习内容为 **preserve（须标注为生成内容）**；**未删除任何数据**。
+5. 外部数据集：CET-4/6、官方 IELTS、Oxford 3000/5000 等**无可用许可证据**；
+   CEFR-J / Tatoeba / Wiktextract 有第一方条款可读；NGSL 仅声明 "Creative Commons"（变体待确认）。
+6. **Phase 8 拆分决策：建议拆分**（迁移链修复与 Books 实现分离），并已作为 ADR-022 提案提交评审；
+   Phase 7 **未**修改路线图。
+
+**外部审核轨迹（v1 → v2 修正）:**
+
+| 版本 | 日期 | 结论 | 说明 |
+|------|------|------|------|
+| **v1** | 2026-09-21 | 🔴 **Changes Requested**（Phase 7 Not Approved；Phase 8 保持 Not Started） | B-01 迁移 squash 策略 / B-02 目标模型丢失来源语义 / B-03 多值例句与来源标记 / B-04 复习状态合并不得合成非法状态；另含来源证据修正（NGSL / BSL / CEFR-J）与措辞要求、非阻塞项（书内进度版本安全）、审核包 manifest 控制字符问题。完整记录见 `docs/refactor/reviews/phase-7-review.md` |
+| v1 修正 | 2026-09-21 | 修正已完成（v2 送审） | 全部为**文档修正**：B-01 重写迁移处置（新增 Prisma v7 baselining / squashing 两条路线 + 归档与对齐要求）；B-02 新增 §4.6（来源词性 / 等级 / 条目 id 归属 entry，`record` 案例逐项回答）；B-03 新增 §4.7（`WordExample` 子关系 + 逐条 provenance）；B-04 重写 §3.4（禁止拼接状态，C-0 / C-1 / C-2 三情形）；来源证据与措辞修正（NGSL 1.2 / BSL 1.2 = CC BY-SA 4.0，新增措辞纪律 §7.0）；书内进度版本安全要求 |
+| **v2** | 2026-09-21 | 🔴 **Changes Requested**（Phase 7 Not Approved；Phase 8 保持 Not Started） | **B-01 / B-02 / B-03 / B-04 = accepted as resolved**（不得回退）；新增阻断项 **B-05**：词条身份 / 书内条目 / 导入管线必须端到端一致 —— v2 的 `by-wordKey-keep-first` 与 `no-duplicate-wordKey` 会丢弃 CEFR-J 式的合法来源条目（`record` noun B1 / verb A2）；另要求内容解析规则、例句作用域、学习者状态后果显式化，并修正 handoff 中 NGSL / CEFR-J 的过时表述 |
+| v2 修正 | 2026-09-21 | 修正已完成，**待 v3 外部复审** | 全部为**文档修正**：§4.6 重写为 A / B / C 方案对比并**选定 C**（共享 `Word` + 轻量 `WordUsage` + 条目指向 usage）；新增三层身份与去重判定（`Word` / `WordUsage` / `BookEntry`），manifest 与导入流程移除 `wordKey` 级别的条目去重；新增 §4.8 内容解析规则（entry → usage → word，含 `record` 名词 / 动词音标差异）；新增 §4.7.5 例句作用域（`WordExample.wordUsageId` 可空 = 用法中立）；新增 §6.4 学习者状态后果（词级掌握度 + 用法级状态触发条件）；CEFR-J 证据逐字取证并移除过时未决项 |
+| **v3** | 2026-09-21 | **当时阻断项（B-05）已解决**；Phase 7 **未**被批准为 Completed | 送审包 `phase-7-review-pack-v3.zip`。**本地无独立 v3 verdict 文件**（v3 包生成于等待复审时）→ 本行按**架构 / 评审渠道结论**如实记录（差异已在 `reviews/phase-7-review.md` 中标明） |
+| **v4 / 产品澄清** | 2026-09-23 | Phase 7 **在收尾前被有意重新打开**；现为 **In Review**，等待 **v4 复审** | **产品改变核心前提**：① 学习与 SRS 的单位 = **词书条目**（状态键 `(userId, bookEntryId)`）；② 不要求跨书同步（明确拒绝传播 / 合并 / 迁移评分）；③ `BookEntry` 可含多个目标义项，上游按 POS 分行**不**自动拆成学习者可见卡片，但来源行**不得丢弃**；④ **`WordUsage` 移除**；⑤ 允许**带 provenance 与校验门的 AI 富化**；⑥ 数据来源改按**四类**分离并引入**审批三态**（含 OEWN CC BY 4.0 / FreeDict 逐词典待核实） |
+| **v4 复审** | 2026-09-23 | 🔴 **Changes Requested**（Phase 7 仍未批准；Phase 8 保持 Not Started） | **v4 决策被接受且不得重新打开**；新增阻断项 **B-06**（`BookEntry` 稳定身份 `entryKey`）/ **B-07**（正式词书内容的规范归属，禁止隐式通用回退）/ **B-08**（许可适用性 vs 项目导入批准必须分离）/ **B-09**（ADR-020 现行理由与 v4 矛盾）/ **B-10**（Books 阶段不得破坏或提前实现 Packs） |
+| **v5 修正** | 2026-09-23 | 修正已完成，**待 v5 外部复审** | 全部为**文档修正**：引入 `entryKey`（`UNIQUE(bookId, entryKey)`，`position` 仅排序，导入按 `entryKey` 协调、缺失条目转 `inactive` 而不孤立学习状态）；`BookEntryMeaning` 承载**义项级音标与书内搭配**、成为正式词书卡片的规范内容（禁止隐式通用回退，新增显式 `fallbackPolicy` 默认 `none`）；来源文档把**许可适用性**与**项目导入批准**拆成两个正交状态（当前无来源达到 `APPROVED FOR PRODUCTION IMPORT`）；ADR-020 重构为**一个现行决定 + 现行理由**，历史 v1–v3 理由标注为 superseded；迁移策略改为 **Books 阶段只迁正式词书侧**、保留词包遗留运行时直到 Phase 10（V-15 修正，新增 V-25…V-31、R-16…R-19） |
+| **v5 复审** | 2026-09-23 | ✅ **Approved**（**Blocking Issues: None**；B-01…B-10 全部 resolved） | **Phase 7 关闭为 Completed / Approved**；ADR-019…ADR-022 由收尾命令转为 **Accepted**；**阶段拆分激活**：Phase 8 = 迁移链修复 / 可复现基线（Ready / Not Started），Phase 9 = Vocabulary Books，Phase 10 = Themed Packs，原 Phase 10–15 顺延为 Phase 11–16。完整记录见 `docs/refactor/reviews/phase-7-review.md` |
+
+**审核包:** v1 = `phase-7-review-pack-v1.zip`（manifest 控制字符问题，已在 v2 修复）；
+v2 = `phase-7-review-pack-v2.zip`；v3 = `phase-7-review-pack-v3.zip`；
+**v4 = `phase-7-review-pack-v4.zip`（含 "v3 → v4 product clarification" 摘要 + 干净 manifest +
+控制字符扫描 + 哈希校验）**；**v5 = `phase-7-review-pack-v5.zip`（含 B-06…B-10 修正 +
+"v4 → v5 correction" 摘要 + 干净 manifest + 控制字符扫描 + 哈希校验）**。
+
+**验证:** 见 `docs/refactor/handoffs/phase-7-handoff.md`（`git status --short` / `git diff --stat` / `git diff --check`，
+并对 schema / migration / UI / API / 依赖 / 生产源码逐项确认**未**变更）。
+
+**未决:** 不背单词第一方证据、WordNet 许可、NGSL / BSL 之外的**同站子表（如 ASL）**、生产库真实数据分布
+（含 `_prisma_migrations` 状态）、用户自建词包归属、legacy IELTS 词表替换决策、
+CC BY-SA / CEFR-J 改変条款带来的**产品 / 法务**问题（详见设计 / 来源文档的未决清单）。
 
 > **方向变更记录（2026-09-16）。** 本 Phase 此前被规划为「学习路径 Agent」。
 > 该方向在 Phase 7 实现开始前被退役：**不会**建立网站级 / master Learning Path Agent。
@@ -481,108 +563,135 @@ Assistant learner-context 集成、Phase 5 Trace 基础设施（见 `handoffs/ph
 
 ---
 
-## Phase 8：Vocabulary Books Implementation
+> **2026-09-23 阶段拆分激活（行政收尾）。** Phase 7 的出口决策已生效：原 Phase 8 拆分为
+> **Phase 8 = Migration Chain Repair & Reproducible Baseline** 与
+> **Phase 9 = Vocabulary Books Implementation**，**Phase 10 = Themed Packs Convergence**；
+> 原 Phase 10–15 的**既有意图、出口条件、安全要求与评估义务全部保留**，编号 +1 顺延为 Phase 11–16。
+> 历史记录（上文 Phase 0–7）不改写；历史文档中的旧编号在明确属于历史叙述时可以保留。
 
-**状态:** Not Started（前置条件：Phase 7 Approved；本阶段需先处置阻塞安全 schema 演进的
-Prisma 迁移链问题）
-**范围门禁（复审修正 R-01）:** 仅当 Phase 7 判定"迁移链修复 + Books 实现可留在同一个有界 Phase"
-时才按单阶段执行；否则先按 Phase 7 的出口决策拆分路线图。
-**迁移验证门（复审修正 R-02）:** 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，
-迁移正确性与可复现性（真实数据库验证）就是**本阶段**的验收门禁，不得推迟到 Phase 15。
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+## Phase 8：Migration Chain Repair & Reproducible Baseline
+
+**状态:** **Ready / Not Started**（前置条件：Phase 7 Completed / Approved，2026-09-23）
+**本阶段出口:** 一条**可复现的迁移链**——处置损坏的历史 baseline（推荐路线 B：按 Prisma ORM v7 官方
+squash 语义压缩为**一份** baseline，并把被移除的历史迁移归档出活动链），在**空数据库**与
+**生产形状克隆库**上完成真实执行验证（`migrate deploy` 后与 `prisma/schema.prisma` 双向 diff 为空）、
+`migrate resolve --applied` 对齐、以及明确的前滚 / 回滚剧本。
+**本阶段 MUST:** 只做迁移链修复 / 基线可复现性与验证；保持应用可运行；保留归档与 SHA-256 证据。
+**本阶段 MUST NOT:** 引入任何产品功能；实现 Vocabulary Books 模型 / UI / 导入管线；
+改动 SRS 行为；把 Vocabulary 工作提前拉进本阶段。
+**迁移验证门（R-02）:** 迁移正确性与可复现性（真实数据库验证）是**本阶段**的验收门禁，
+不得推迟到 Phase 16。
+**任务书:** 尚未创建（由下一位协调者依据 `PHASE_EXECUTION_PROTOCOL.md` §4 重建命令）。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 9：Themed Packs Convergence
+## Phase 9：Vocabulary Books Implementation
 
 **状态:** Not Started（前置条件：Phase 8 Approved）
-**开始日期:** —
-**完成日期:** —
-**审核:** ⏳
+**本阶段出口:** 落地已批准的 Book 模型与选书体验：`VocabularyBook` / `VocabularyBookEntry`
+（**稳定 `entryKey`，`UNIQUE(bookId, entryKey)`**；`position` 仅排序）/ 从属
+`BookEntryMeaning`（规范释义 / 目标词性 / 义项级音标 / 书内搭配）与 `BookEntryExample`、
+**`LearnerEntryReview(userId, bookEntryId)`** 归属、导入管线 + manifest（`entryKey` 规则、
+curation 规则、许可与署名证据）、AI 富化 + 校验门。
+**范围门禁（B-10，v5）:** **只迁正式词书侧**；**保留**当前 Theme / generated 行、其遗留运行时与
+遗留 `WordReview` 路径（标注 transitional / deprecated）；跨域 `Word` 合并留到 Phase 10。
+**迁移验证门（R-02）:** 若本阶段变更 `schema.prisma` / migrations，迁移正确性验收属于**本阶段**。
+**开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 10：Reliability, Ownership & Evaluation Platform Convergence
+## Phase 10：Themed Packs Convergence
 
-**状态:** Not Started（2026-09-20 第二次路线修订中更名并加强出口）
+**状态:** Not Started（前置条件：Phase 9 Approved）
+**本阶段出口:** default / user packs 归位到已批准架构：主题 / 生成成员迁移到
+`VocabularyPack` / `VocabularyPackEntry`、label / emoji 服务端化、自定义包经 `AIClientPort`、
+定义词包学习状态语义；在安全处执行剩余的**跨域 `Word` 身份合并**；
+并且**只有在词包不再依赖之后**才移除遗留 `theme` / `source` / `difficulty` 语义与遗留 review 路径。
+**开始日期:** — **完成日期:** — **审核:** ⏳
+
+---
+
+## Phase 11：Reliability, Ownership & Evaluation Platform Convergence
+
+**状态:** Not Started（2026-09-20 第二次路线修订中更名并加强出口；**2026-09-23 由旧 Phase 10 顺延**）
 **本阶段出口:** 建立项目级评估 / 实验基础设施（评估 harness、golden-set / fixture 约定、
 实验记录约定、trace / metrics 导出策略、延迟 / 错误 / token / 成本测量口径），
-使后续 Phase 12 / 13 的 AI 实验**可测量**，而不是事后补做。
+使后续 Phase 13 / 14 的 AI 实验**可测量**，而不是事后补做。
 **范围 / 拆分决策门（R-03）:** 实现开始**之前**必须显式判定
 (A) Reliability / Ownership / Architecture convergence 与
 (B) Evaluation Platform foundation 能否安全留在**同一个有界 Phase**；
-若属可独立审核的高风险工作流，则在 Phase 10 实现开始前拆分路线图（Phase 编号不受保护）。
-该判定由 Phase 10 的已批准任务书 / 外部评审产出；本次修订不预先拆分、不新增编号。
+若属可独立审核的高风险工作流，则在 Phase 11 实现开始前拆分路线图（Phase 编号不受保护）。
+该判定由 Phase 11 的已批准任务书 / 外部评审产出；本收尾不预先拆分、不新增编号。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 11：AI Coach Foundation Refactor
+## Phase 12：AI Coach Foundation Refactor
 
-**状态:** Not Started
-**本阶段出口:** 在 Phase 11 结束时产出**确定性 Coach 评估基线**（golden set + 基线测量），
-供 Phase 12（检索）与 Phase 13（Agent）对比；**不得**在本阶段悄悄实现完整 Agent runtime。
+**状态:** Not Started（**2026-09-23 由旧 Phase 11 顺延**）
+**本阶段出口:** 在 Phase 12 结束时产出**确定性 Coach 评估基线**（golden set + 基线测量），
+供 Phase 13（检索）与 Phase 14（Agent）对比；**不得**在本阶段悄悄实现完整 Agent runtime。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 12：Retrieval & Knowledge Engineering
+## Phase 13：Retrieval & Knowledge Engineering
 
-**状态:** Not Started（2026-09-20 新增的独立可审核 Phase）
+**状态:** Not Started（2026-09-20 新增的独立可审核 Phase；**2026-09-23 由旧 Phase 12 顺延**）
 **本阶段出口:** 设计、实现并**评估**知识检索层；产出明确的架构决策——
 哪种检索方法胜出、为什么、被测量的 trade-off，以及 **RAG 是否属于生产**。
 必须先建立至少一个更简单的基线；负面结论（语义 / 向量检索不值得其复杂度）在证据支持下合法。
 **检索最小安全（R-02，本阶段内）:** 因为本阶段**引入**检索风险，检索的最小安全边界必须在
 同一 Phase 内建立：不可信检索内容（非系统权威）、provenance / 来源元数据、
 prompt-injection / 间接注入边界、恶意 / “指令式”检索内容测试用例、
-检索证据与治理性 system 指令的隔离。**不得**把首次安全边界推迟到 Phase 14。
+检索证据与治理性 system 指令的隔离。**不得**把首次安全边界推迟到 Phase 15。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 13：Agentic AI Coach & Tool System
+## Phase 14：Agentic AI Coach & Tool System
 
-**状态:** Not Started（**刻意延后**；只在产品行为确实需要动态决策时评估）
+**状态:** Not Started（**刻意延后**；只在产品行为确实需要动态决策时评估；**由旧 Phase 13 顺延**）
 **本阶段出口:** 默认先做有界**单一 Agent**；tool registry / schemas / loop 控制 / 预算 /
-context 管理 / read-write 边界；并把 Agentic Coach 行为与 Phase 11 的确定性基线做**对照评估**。
+context 管理 / read-write 边界；并把 Agentic Coach 行为与 Phase 12 的确定性基线做**对照评估**。
 若 Agent 自主性未改善某个 workflow，则保留确定性 workflow。
 **入口门：真实动态决策需求（R-06，本阶段内）:** 实现前必须指出无法充分预定的具体决策 / 路径 /
-工具 / 动作选择，解释为什么确定性 Workflow 不足，并定义用于对比的确定性基线（Phase 11）。
+工具 / 动作选择，解释为什么确定性 Workflow 不足，并定义用于对比的确定性基线（Phase 12）。
 若 AI Coach 不存在合法动态决策问题，**不得制造虚假 Agent 自主性**——要么识别另一个与产品一致的
 有界 Agent 用例，要么走正常治理流程提出路线图 / 标准修订。
 **最小 Agent / tool 安全（R-02，本阶段内）:** allowlist 工具、权威用户身份 / user isolation、
 显式 permission 边界、read vs write 区分、高风险写入的 confirmation / HITL、
 有界预算 / 循环上限、tool 失败隔离、足以重建关键工具决策的 audit / trace 钩子。
-**不得**推迟到 Phase 14。
+**不得**推迟到 Phase 15。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 14：MCP Interoperability, AgentOps & Safety
+## Phase 15：MCP Interoperability, AgentOps & Safety
 
-**状态:** Not Started（2026-09-20 新增的独立可审核 Phase）
+**状态:** Not Started（2026-09-20 新增的独立可审核 Phase；**由旧 Phase 14 顺延**）
 **本阶段出口:** 一个**合法的 MCP 互操作边界**（Application Use Cases → 多个 adapter，
 含 MCP adapter；Domain / Application 不依赖 MCP）**+ MCP 专属与生产风格硬化**
 （外部客户端 / 协议授权、MCP 能力暴露策略、传输 / 协议边界、更丰富的 audit / replay / debugging、
 运行监控、确有理由时的 red-team 硬化、跨外部互操作边界的策略执行）。
-**定位（R-02）:** 安全边界已在引入风险的 Phase 12 / 13 内建立；本阶段做硬化与生产化，
+**定位（R-02）:** 安全边界已在引入风险的 Phase 13 / 14 内建立；本阶段做硬化与生产化，
 **不得**成为检索 / Agent 安全边界的首次建立点。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
 
-## Phase 15：Production, Benchmark & Portfolio Hardening
+## Phase 16：Production, Benchmark & Portfolio Hardening
 
-**状态:** Not Started（路线图的终止阶段；2026-09-20 第二次路线修订由旧 Phase 13 加强而来）
+**状态:** Not Started（路线图的终止阶段；**由旧 Phase 15 顺延**）
 **迁移完整性定位（复审修正 R-02）:** 本阶段只做**全新环境复验**（部署、迁移执行、备份 / 回滚、
-生产就绪）；迁移正确性的**首次建立点必须更早**——由修复 / 变更迁移的那个已批准 Phase 承担。
+生产就绪）；迁移正确性的**首次建立点必须更早**——由修复 / 变更迁移的那个已批准 Phase 承担
+（当前为 **Phase 8**）。
 **本阶段出口:** 部署 + 认证 / 授权 + CI/CD + 生产可观测性 + 演示数据 + README + 架构图 +
 威胁 / 安全文档 + **基准 / 实验汇总** + 作品集案例研究 / 面试指南 / demo 脚本。
 本阶段**不是**正确性第一次建立的地方——它校验并打包前面 Phase 已经证明的能力。
 **基础安全 / 授权边界归属（R-05）:** 缺失 API Key 的 pre-flight 校验、CORS、auth 等**基础**安全 /
-授权边界由 **Phase 10** 建立 / 修复；本阶段只做部署级**复验与最终加固**。
+授权边界由 **Phase 11** 建立 / 修复；本阶段只做部署级**复验与最终加固**。
 **开始日期:** — **完成日期:** — **审核:** ⏳
 
 ---
@@ -592,10 +701,15 @@ context 管理 / read-write 边界；并把 Agentic Coach 行为与 Phase 11 的
 以下标题曾出现在本文件中，**不是**当前路线图的一部分。保留名称仅为可追溯性：
 
 - ~~Phase 7：学习路径 Agent~~ — 于 2026-09-16 退役，见 `DECISIONS.md` ADR-015。
-- ~~Phase 8：测试与可靠性加固~~ — 由当前 Phase 10 承担，见 `MASTER_PLAN.md`。
-- ~~Phase 9：部署与作品集包装~~ — 由当前 Phase 15 承担，见 `MASTER_PLAN.md`。
+- ~~Phase 8：测试与可靠性加固~~ — 由当前 Phase 11 承担，见 `MASTER_PLAN.md`。
+- ~~Phase 9：部署与作品集包装~~ — 由当前 Phase 16 承担，见 `MASTER_PLAN.md`。
 - ~~Phase 12：Agentic AI Coach（旧编号）~~ — 2026-09-20 第二次路线修订后，
-  Agentic 工作移到 Phase 13（`Agentic AI Coach & Tool System`），Phase 12 改为
-  `Retrieval & Knowledge Engineering`。见 `DECISIONS.md` ADR-017 / ADR-018。
+  Agentic 工作移到 Agentic 阶段，检索改为独立阶段；**2026-09-23 拆分激活后**，
+  Agentic 阶段现为 **Phase 14**（`Agentic AI Coach & Tool System`），
+  检索阶段现为 **Phase 13**（`Retrieval & Knowledge Engineering`）。见 `DECISIONS.md` ADR-017 / ADR-018。
 - ~~Phase 13：Production & Portfolio Hardening（旧编号）~~ — 2026-09-20 加强并移到
-  Phase 15（`Production, Benchmark & Portfolio Hardening`）。见 `MASTER_PLAN.md`。
+  终止阶段（`Production, Benchmark & Portfolio Hardening`）；**2026-09-23 拆分激活后现为 Phase 16**。
+  见 `MASTER_PLAN.md`。
+- ~~Phase 10 = Vocabulary Books / Phase 11 = Themed Packs（2026-09-20 编号）~~ —
+  2026-09-23 行政收尾后：**Phase 9** 才是 Vocabulary Books Implementation，
+  **Phase 10** 是 Themed Packs Convergence，**Phase 11** 是 Reliability / Ownership / Evaluation。

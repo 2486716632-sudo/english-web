@@ -101,7 +101,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
     Adapter 在 Infrastructure、Composition Root 装配）；
   - 对“**为什么此处选 Workflow 而非 Agent**”的书面解释。
 - **什么不算数:** 只是有很多文件夹；只有一张手绘草图而没有可执行或可验证的边界。
-- **可能归属 Phase:** Phase 1（设计）、Phase 3–6（已建立）、Phase 10（遗留收敛）、Phase 15（图与讲解）。
+- **可能归属 Phase:** Phase 1（设计）、Phase 3–6（已建立）、Phase 11（遗留收敛）、Phase 16（图与讲解）。
 - **分类:** 义务 = **MC**；表面 = **ER**（可强制执行边界）+ **DOC**（架构图与 ADR 摘要）。
 
 ### 3.2 Deterministic Workflow — 确定性的步骤编排
@@ -127,7 +127,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - **有界上下文检索**（条数 / 单条长度 / 整段长度上限；无 select-all 扩大路径）；
   - **privacy / safety**（trace 只记录计数与尺寸，不记录内容与 `userId`；记忆注入是“数据非指令”）。
 - **什么不算数:** 把完整对话历史当作记忆；无界检索；把语义键绕过 canonical state 所有权。
-- **可能归属 Phase:** Phase 6（地基）、Phase 10 / Phase 11。
+- **可能归属 Phase:** Phase 6（地基）、Phase 11 / Phase 12。
 - **分类:** 义务 = **MC**；表面 = **PR**（真实状态与记忆）+ **ER**（有界性测试）。
 
 ### 3.4 Retrieval / RAG — 检索工程的可测量调查
@@ -145,11 +145,11 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
     更简单检索在何处仍然更优。
 - **什么不算数:** 安装一个向量数据库；展示一次成功的语义搜索；
   没有固定数据集、没有对照基线、没有指标。
-- **可能归属 Phase:** Phase 12（主）、Phase 10（评估基础设施）、Phase 11（Coach 基线）。
-- **最小安全（R-02，同阶段）:** 因为检索**引入**风险，检索的最小安全边界必须在 Phase 12 内建立：
+- **可能归属 Phase:** Phase 13（主）、Phase 11（评估基础设施）、Phase 12（Coach 基线）。
+- **最小安全（R-02，同阶段）:** 因为检索**引入**风险，检索的最小安全边界必须在 Phase 13 内建立：
   检索内容为不可信数据（非系统权威）、provenance / 来源元数据、
   prompt-injection / 间接注入边界、恶意 / “指令式”检索内容测试用例、
-  检索证据与治理性 system 指令的隔离。**不得**把首次边界推迟到 Phase 14。
+  检索证据与治理性 system 指令的隔离。**不得**把首次边界推迟到 Phase 15。
 - **分类:** 义务 = **ME**（检索调查必须完成）+ **CP**（生产采纳由证据决定）；
   表面 = **ER**（检索实验与评估）→ **PR**（**仅当**被证据采纳时）。
 
@@ -162,14 +162,14 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - **真实的模型驱动动态决策需求**（路径 / 工具 / 动作无法预先确定）；
   - **tool contracts**（allowlisted registry、tool schemas、tool-result 处理）；
   - **loop / stopping 控制**（循环与停止条件、retry / failure 行为、budgets / limits）；
-  - **相对确定性基线的对照比较**（Phase 11 的基线）；
+- **相对确定性基线的对照比较**（Phase 12 的基线）；
   - eval 数据集与任务 / 工具指标（task success rate、tool-selection accuracy、
     tool-argument / schema validity、unnecessary-tool-call rate、trajectory length、
     recovery、latency、token / cost impact）；
   - 失败案例记录。
 - **什么不算数:** 把一个普通 Workflow 称作 Agent；使用 LangGraph（或任何框架）却没有动态决策；
   为架构外观引入 Multi-Agent。
-- **可能归属 Phase:** Phase 13（主）、Phase 11（基线）。
+- **可能归属 Phase:** Phase 14（主）、Phase 12（基线）。
 - **入口门（R-06，同阶段）:** 实现前必须指出无法充分预定的具体决策 / 路径 / 工具 / 动作选择、
   解释为什么确定性 Workflow 不足，并定义用于对比的确定性基线。若不存在合法动态决策问题，
   **不得制造虚假 Agent 自主性**——改而识别另一个与产品一致的有界 Agent 用例，或走治理流程修订。
@@ -193,7 +193,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - traceability。
 - **什么不算数:** 把一个内部函数包进 MCP、再由同一组件调用，仅为简历价值；
   为证明 MCP 而强行拆出外部微服务。
-- **可能归属 Phase:** Phase 14。
+- **可能归属 Phase:** Phase 15。
 - **分类:** 义务 = **ME**（至少一个合法互操作实现是作品集目标）+ **CP**（生产采纳要求真实协议价值）；
   表面 = **ER**（adapter 与契约）+ **DOC**（MCP 客户端 demo）→ **PR**（**仅当**被采纳时）。
 
@@ -209,7 +209,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - bad-case 追踪；
   - 在有理由处的质量门禁。
 - **什么不算数:** 把 Evaluation 等同于 unit testing；只测 schema 合法性而不测任务质量。
-- **可能归属 Phase:** Phase 2（基线，已建立）、Phase 10（基础设施）、Phase 11–14（各领域）、Phase 15（汇总）。
+- **可能归属 Phase:** Phase 2（基线，已建立）、Phase 11（基础设施）、Phase 12–15（各领域）、Phase 16（汇总）。
 - **分类:** 义务 = **MC**；表面 = **ER**（评估 harness、golden set、回归与报告）。
   **不天然要求 PR**——评估基础设施本身不是生产运行时能力。
 
@@ -224,7 +224,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - 能定位 AI 任务失败原因的能力。
 - **什么不算数:** 把 Observability 等同于 console logging；只打印自由文本日志而没有执行级结构。
   （**不要求**特定厂商；OpenTelemetry / Langfuse / Braintrust 等可在后续按需评估。）
-- **可能归属 Phase:** Phase 5（已建立）、Phase 10（导出策略）、Phase 15（生产化）。
+- **可能归属 Phase:** Phase 5（已建立）、Phase 11（导出策略）、Phase 16（生产化）。
 - **分类:** 义务 = **MC**；表面 = **PR**（运行中的 trace）+ **ER**（导出 / 聚合策略）。
 
 ### 3.9 Reliability — 有界的失败处理
@@ -237,7 +237,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - idempotency（适当处）；
   - failure-mode tests。
 - **什么不算数:** 无超时路径；无限重试；把确定性格式错误当可重试错误反复消耗额度。
-- **可能归属 Phase:** Phase 3 / 4 / 5（已建立）、Phase 10、Phase 13（Agent 预算）。
+- **可能归属 Phase:** Phase 3 / 4 / 5（已建立）、Phase 11、Phase 14（Agent 预算）。
 - **分类:** 义务 = **MC**；表面 = **PR** + **ER**（失败模式测试）。
 
 ### 3.10 AI Safety / Security — 与已实现能力相称的安全边界
@@ -253,10 +253,10 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - 高影响动作的 confirmation gate；
   - auditability。
 - **什么不算数:** 声称“prompt injection 不可能”；把安全边界写成口头承诺而没有实现或测试。
-- **可能归属 Phase:** Phase 6（用户隔离地基）、Phase 10、Phase 13 / 14。
+- **可能归属 Phase:** Phase 6（用户隔离地基）、Phase 11、Phase 14 / 15。
 - **安全时序不变量（R-02）:** **引入新风险的 Phase 必须在该 Phase 内建立该风险的最小安全边界**；
-  后续 Phase 只能硬化或生产化，**不得**成为首次边界。因此 Phase 12 建立检索最小安全、
-  Phase 13 建立最小 Agent / tool 安全，Phase 14 只做 MCP 专属与生产风格硬化。
+  后续 Phase 只能硬化或生产化，**不得**成为首次边界。因此 Phase 13 建立检索最小安全、
+  Phase 14 建立最小 Agent / tool 安全，Phase 15 只做 MCP 专属与生产风格硬化。
 - **分类:** 义务 = **MC**；表面 = **PR**（运行时边界与隔离）+ **ER**（安全测试与审计钩子）。
 
 ### 3.11 Experimentation — 可测量的工程对照研究
@@ -268,7 +268,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
     确定性 Coach vs Agentic Coach；model / provider 对比；tool-selection 策略对比；
   - 每个研究按第 2 节的八字段记录完整。
 - **什么不算数:** 只有一个轶事；没有基线；没有固定数据集。
-- **可能归属 Phase:** Phase 12 / 13 / 14（研究）、Phase 10（基础设施）、Phase 15（汇总）。
+- **可能归属 Phase:** Phase 13 / 14 / 15（研究）、Phase 11（基础设施）、Phase 16（汇总）。
 - **分类:** 义务 = **ME**；表面 = **ER**（实验脚本与评估器）+ **DOC**（实验报告与基准表）。
 
 ### 3.12 Production — 可部署的系统
@@ -283,7 +283,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - environment setup；
   - operational documentation。
 - **什么不算数:** 只有本地 dev server；迁移链未验证就声称 production-ready。
-- **可能归属 Phase:** Phase 10（CI / 边界）、Phase 15（部署与运维）。
+- **可能归属 Phase:** Phase 11（CI / 边界）、Phase 16（部署与运维）。
 - **分类:** 义务 = **MC**；表面 = **PR**（可部署运行的系统）+ **ER**（CI、迁移、环境配置）。
 
 ### 3.13 Portfolio / Interview Evidence — 可讲解的作品集材料
@@ -299,7 +299,7 @@ Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Lim
   - README；
   - 覆盖**架构、trade-off、失败与测量**的面试讲解材料。
 - **什么不算数:** 只有功能截图；只有功能列表而没有 trade-off 与失败记录。
-- **可能归属 Phase:** Phase 15（主）。
+- **可能归属 Phase:** Phase 16（主）。
 - **分类:** 义务 = **MC**；表面 = **DOC**（架构图、ADR 摘要、benchmark 表、实验报告、demo、README、面试指南）。
 
 ---

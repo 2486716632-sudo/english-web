@@ -768,3 +768,442 @@ post-Phase-6 第二次路线修订。该修订此前以 `Proposed — Pending Ex
   与证据 / 运行时表面轴（`PR` 生产运行时、`ER` 工程 / CI / 评估基础设施、`DOC` 文档 / 作品集证据）。
 - 任何引入向量库 / MCP SDK / Agent 框架 / fine-tuning 的 PR，都必须引用本 ADR 对应条款并附
   被测量的证据，否则视为超出范围。
+
+---
+
+## ADR-019: Vocabulary 目标领域模型 —— 身份 / 内容 / 成员资格 / 学习者状态分离
+
+**日期:** 2026-09-21
+**状态:** **Accepted**（**2026-09-23 经外部评审 v5 Approved，Blocking Issues: None**；
+由行政收尾命令从 `Proposed — Pending External Review` 转为 `Accepted`。含义以 **v5** 设计为准。
+本 ADR 仍**不**单独授予实现授权：实现范围以各阶段已批准任务书为准）
+**来源:** `docs/refactor/VOCABULARY_PLATFORM_DESIGN.md`（Phase 7）
+
+> **阅读顺序提示（v5）。** 本 ADR 的**现行版本是文末的 `v5 修正` 块**（其中已合并 v4 的模型决定）。
+> 上方的 `决定:` 列表与 `v2 修正` / `v3 修正` 块是**历史记录**：凡涉及 `WordUsage`、
+> `WordExample(.wordUsageId)`、`UNIQUE(bookId, position)`、`posKey` 闭集的表述**均已被取代**，
+> 只能作为 v1 → v5 决策演变的追溯材料，**不得**作为现行设计依据。
+
+**决定:**
+
+1. Vocabulary 采用**分区模型**，四类信息各自有归属：
+   **A** 词汇底座（`Word` 身份 + 内容字段）、**B** 词书成员资格、**C** 词包成员资格、
+   **D** 学习者状态、**E** 来源追溯（provenance）。
+2. `Word` **只**承载词条身份（`wordKey` 归一化身份 + `headword` 展示词形）与其内容字段；
+   **不再**承载 `theme`（词包成员）、`difficulty`（实为词书 / 词包身份）、
+   `source`（同时表示来源与产品域的混合语义）。
+3. 成员资格用**关系型中间表**表达（词书条目 / 词包条目），从而支持"同一个词属于多本书 / 多个包"
+   而不复制词条。
+4. 内容字段必须带**逐字段来源标记**（例如 built-in / imported / generated），
+   使"哪些内容是 AI 生成的、是否可替换"可被查询与审计。
+5. **不引入** `Lexeme` / `WordForm` / `WordSense`；**暂不引入**独立的 `WordContent` 表。
+   触发条件：当出现"同一词的多个内容版本必须并存"或"必须按义项追踪掌握度"的**真实产品需求**时，
+   经治理流程再评估。
+6. Books 与 Packs 保持**概念分离**（沿用 ADR-016）：共享词汇底座与 SRS 引擎，
+   但不合并为通用"词汇容器"抽象。
+
+**v2 修正（2026-09-21，外部复核 v1 = Changes Requested 的 B-02 / B-03）:**
+
+- **源条目语义归属（B-02）**：`Word` 身份**只**由归一化 headword 决定，**不含** POS；
+  来源的词性 / 等级 / 条目 id / 分类 / 排名等**来源特定属性**一律落在 `VocabularyBookEntry`
+  （`sourcePos`、`sourceCefrLevel`、`sourceEntryId`、`sourceCategory`、`sourceRank` 等）。
+  理由：CEFR-J Wordlist 等真实来源会把同一 headword 的不同词性当作不同条目、并可能赋不同等级；
+  把这些属性放在 `Word` 上会让一个来源覆盖另一个来源。**仍不引入** `WordSense` / `Lexeme`。
+  学习者状态默认仍为"一个词一条"；按 POS 切分状态（`posScope`）是**有触发条件**的后续升级。
+- **多值例句（B-03）**：`Word.example` / `Word.exampleZh` 的 ` ||| ` 拼接表示**不再作为目标模型**；
+  例句改为 `WordExample` 子关系（每行一条，带 `position`、`source` ∈ `licensed` / `curated` / `generated`、
+  以及生成元数据 `provider` / `model` / `generatorVersion` / `generatedAt`、许可内容的 `sourceManifestRef`、
+  以及 `status` 以支持"替换而不删除"）。该触发条件**已成立**（现网 2,000 条词全部含多条例句且由 AI 生成）。
+  搭配（`collocations`）**不**拆表：它整体展示、无逐条替换需求，保留为有界文本 + 字段级来源标记。
+- **书内进度版本安全**：若持久化书内进度，**不得**使用裸位置游标；
+  必须推迟持久化、或绑定 `bookVersion`、或使用稳定引用（如 `lastStudiedWordId`）。
+
+**v3 修正（2026-09-21，外部复核 v2 = Changes Requested 的 B-05）:**
+
+- **引入轻量 `WordUsage`（教学相关用法）**：`Word`（headword 身份）→ `WordUsage`（`(wordId, posKey)`，
+  `posKey` 为闭集 `n` / `v` / `adj` / … / `phrase` / `multi` / `unknown`）→ `VocabularyBookEntry`
+  （指向 usage，并携带 `sourceCefrLevel` / `sourceEntryId` / `sourceCategory` / `sourceRank` / `position`）。
+  `WordUsage` **不是** `WordSense`：不含义项编号、义项辨析或本体映射。
+  选择它的理由是端到端自洽：用法级内容（如 POS 相关音标）、例句作用域、以及将来可能的用法级学习状态
+  都需要一个**共享锚点**；把用法语义只放在 entry 上会导致跨书重复且未来升级要改多处。
+- **内容解析规则（新增）**：`BookEntry 级 → WordUsage 级 → Word 级` 逐字段回退；
+  回退是"取一条完整内容"，**不是**拼接；**不得**因为缺少用法内容而回退到**另一个用法**的内容。
+  典型例子：`record` 名词 `/ˈrekɔːd/` 与动词 `/rɪˈkɔːd/` 必须由用法级音标区分，
+  不得假设全局 `Word.phonetic` 永远正确。
+- **例句作用域**：`WordExample` 增加**可空** `wordUsageId` —— 非空 = 只属于该用法的例句，
+  为空 = 用法中立例句；展示某条目时取"该用法例句 ∪ 用法中立例句"，**绝不**跨用法取例句。
+- **条目层唯一性**：`UNIQUE(bookId, position)` 与（`sourceEntryId` 非空时）
+  `UNIQUE(bookId, sourceEntryId)`；**禁止** `UNIQUE(bookId, wordUsageId)`，
+  因为同一本书可以合法地两次列出同一用法（不同义项 / 考试要求）。
+
+**v4 修正（2026-09-23，产品澄清后的重新定锚）:**
+
+- **移除 `WordUsage`**（不再作为目标领域实体）。v3 需要它是因为假设"状态按词、跨书共享"；
+  v4 把学习单位改为 `BookEntry` 且**不要求跨书共享**，因此该共享锚点没有消费者。
+  若将来出现"必须在多本书之间共享同一批用法级内容"的真实需求，再经治理流程评估。
+- **目标模型（v4）**：`Word`（词形身份 + 共享词汇内容，**不是** SRS 归属）→
+  **`VocabularyBookEntry`**（学习单位：目标词性 / 用法、顺序、层级、书目元数据、来源；**SRS 归属**）→
+  从属 **`BookEntryMeaning`**（1..N 个目标义项 / 用法，逐条来源 / 生成元数据 / 校验状态；**不是** SRS 归属）→
+  从属 **`BookEntryExample`**（0..N 条例句，逐条来源；**不是** SRS 归属）。
+- **上游来源条目不得丢弃**：上游多行可映射为 1 条策划条目（N:1 合法），
+  但每条来源行都必须在某个 `BookEntryMeaning` 上有来源引用；是否为每条来源行建学习者可见条目，
+  是**该书策划决定**（不因上游把它分成两行就自动拆卡）。
+- **继续不引入** `Lexeme` / `WordForm` / `WordSense`（义项本体）。
+
+**v5 修正（2026-09-23，外部复核 v4 = Changes Requested 的 B-06 / B-07 / B-10）:**
+
+- **稳定条目身份（B-06）**：`VocabularyBookEntry` 必须有**稳定策划身份 `entryKey`**，
+  目标不变式 `UNIQUE(bookId, entryKey)`；**`position` 仅是排序，不是身份**。
+  导入 / 重新导入 / 更新**按 `entryKey` 协调**（已存在 → 原地更新；新增 → 建；本次缺失 → `inactive` / `superseded`，
+  **不物理删除**）；只有**策划上确实是另一个学习单位**（拆分 / 合并 / 语义变化）才分配新 `entryKey`。
+  这是 `(userId, bookEntryId)` 学习状态**连续性的前提**。**不**引入 `VocabularyBookVersion` 表；
+  **不**引入跨书身份。
+- **正式词书学习内容的规范载体（B-07）**：正式出版词书的学习卡片以 **`BookEntryMeaning` 的内容为规范**
+  —— 目标释义（`text`）、面向学习者的中文解释 / 翻译（`translation`）、目标词性、
+  **义项级音标（`phonetic`）** 与 **该书作用域的搭配（`collocations`，有界文本）**；
+  `BookEntryExample` 承载例句（可绑定义项）。**共享 `Word` 数据只是策划素材与通用查询数据**，
+  **不得**被静默用作正式词书的卡片内容（`record` 名词 `/ˈrekɔːd/` 与动词 `/rɪˈkɔːd/` 必须可分别表示）；
+  任何回退必须**显式声明**（manifest `fallbackPolicy`，默认 `none`）且经校验。
+- **阶段边界（B-10）**：Books 阶段**只**引入正式词书侧模型；**保留**词包当前依赖的
+  `theme` / `source` / `difficulty` 字段与其运行时 / 遗留 review 路径（标注为 transitional / deprecated），
+  跨域 `Word` 合并与遗留语义移除留给 **Phase 10（Packs）**。
+
+**理由:**
+
+- 现状把四类信息挤在同一张表（`prisma/schema.prisma` 的 `Word.theme` / `difficulty` / `source`），
+  导致"加一本词书"会连带影响复习队列、统计与界面，且无法回答"这个词为什么属于雅思"。
+- 分区后每类变更的影响范围变小，且许可审查可以落在**成员资格**与**内容**两个可定位的位置。
+- 逐字段来源标记是"AI 生成内容可识别、可替换"这一要求的**最小**实现；
+  它避免引入 JSON dumping ground，也避免过早引入语义规范化。
+
+**后续影响:**
+
+- Phase 8 / 9 的实现范围以各自被批准的任务书为准；schema 变更仍受 `ARCHITECTURE_RULES.md` EXT-003
+  与 `CLAUDE.md` 的授权规则约束。
+- 本文只记录**设计决策**。**Phase 7 不实现**任何模型、表或字段。
+- 若后续证据表明 Books 与 Packs 应当收敛，需新 ADR 记录证据，不能静默合并（与 ADR-016 一致）。
+
+---
+
+## ADR-020: 学习者词汇状态归属与重叠词语义（全局掌握度 + 成员资格）
+
+**日期:** 2026-09-21
+**状态:** **Accepted**（**2026-09-23 经外部评审 v5 Approved，Blocking Issues: None**；
+由行政收尾命令转为 `Accepted`。**现行决定 = 本 ADR 顶部的"当前决定（v4/v5）"**，
+下方 v1–v3 的历史决定与理由仅作追溯，不得作为现行依据）
+**来源:** `docs/refactor/VOCABULARY_PLATFORM_DESIGN.md` §5–§6、`docs/refactor/VOCABULARY_MIGRATION_STRATEGY.md` §3–§4
+
+---
+
+### 当前决定（**v4 起生效；v5 修正，B-09 —— 本 ADR 的唯一现行版本**）
+
+> **标题中的"全局掌握度 + 成员资格"是 v1–v3 的历史结论，已被本节取代。**
+> 标题为保留历史引用而**不改写**。本节以下的 `决定 / v2 修正 / v3 修正 / 理由 / 后续影响`
+> 均标注为**历史记录（已被取代）**，只作追溯之用，**不得**作为现行决定或理由引用。
+
+1. **SRS 状态属于 `User + BookEntry`**：`LearnerEntryReview(userId, bookEntryId)`，
+   `@@unique([userId, bookEntryId])`。**不是** `(userId, wordId)`。
+2. **同一拼写出现在不同书 = 不同条目 = 各自独立状态**：**不**传播、**不**合并、**不**做迁移评分。
+3. **换书**：新书条目从"未学习"开始；旧书状态保留；用户可**自行**在新书按"已掌握"
+   （现有产品已提供知识等级 / 掌握标记能力）。
+4. **明确拒绝**（不得在实现中悄悄加入）：全局跨书 SRS 同步、自动掌握度传播、跨书复习状态合并、
+   transfer scoring、合成的"全局熟悉度调度器"。
+5. **状态连续性依赖稳定 `entryKey`（v5，B-06）**：`bookEntryId` 只在 `entryKey` 不变时代表
+   同一个学习单位；导入按 `entryKey` 协调（原地更新 / 新增 / 旧条目转 `inactive`），
+   **`position` 不是身份**。
+6. **"禁止拼接复习状态"的硬性不变式继续有效**（来源：v2 修正），但适用范围收窄为
+   **多条旧 `WordReview` 行被映射到同一个新条目**的情形（现网 IELTS 池为 1:1，**预期冲突数 0**）。
+7. 学习者归属身份**只能**来自 `ExecutionContext.userId`（Phase 6 B-01 不变式）；payload 不携带 `userId`。
+8. **SM-2 算法与返回值语义不变**（Phase 2 的 32 个表征测试为受保护基线，不得放宽）。
+
+**当前理由（v4 / v5）:**
+
+- **"先选一本词书，然后学习与 SRS 作用在这本书的条目上"是产品决定**：学习单位是 `BookEntry`，
+  不是跨书共享的"词"。因此状态键必须是 `(userId, bookEntryId)`。
+- **每本书拥有自己的 `BookEntry` SRS**：同一拼写在不同书里可能是不同的策划目标
+  （不同义项、不同等级、不同例句 / 音标 / 搭配），它们**本来就不是同一个学习单位**。
+- **不存在隐藏的跨书同步**：跨书传播 / 合并 / 迁移评分意味着额外的语义与迁移风险，
+  而产品没有要求它；**简单与可预测**优先于"转移逻辑"。
+- **跨书重复出现是可以接受的**：同一个词在两本书里都要学，是可接受的产品行为；
+  学习者可以使用**现有的知识等级 / "已掌握"按钮**自行处理。
+- **数据现实支持这一简化**：现网 2,849 行对应 2,704 个词形（119 个词跨 IELTS 池与主题包、
+  26 个词跨多个主题）；这些重复**不需要**算法去同步，只需要清晰的"书内条目"语义。
+
+---
+
+### 历史决定与理由（v1–v3，**已被上面的当前决定取代；保留作追溯**）
+
+> 以下内容**不是**现行决定，也**不是**现行理由。它们包含与当前 v4 决定**相反**的论断
+> （例如"换书后重新学习是产品缺陷"、"按书隔离状态劣于全局状态"），
+> 保留仅为审计 v1 → v4 的决策演变。
+
+**历史决定（v1）:**
+
+1. **掌握度属于"学习者 × 词条"**：学习状态按 `(userId, wordId)` **全局唯一**
+   （由当前 `WordReview` 的 `@@unique([wordId])` 演进而来）。
+2. **书与包只记录成员资格与顺序**，不拥有第二份掌握度。
+3. **书内进度是派生的**（由成员集合 + 学习状态计算），不存冗余计数；
+   只有在实测证明派生成本不可接受时才引入缓存列。
+4. **换书不重置**任何学习状态；**词书版本更新不销毁**学习状态（状态键与版本无关）。
+5. 学习者归属身份**只能**来自 `ExecutionContext.userId`（沿用 Phase 6 的 B-01 不变式）；
+   payload 不携带 `userId`。
+6. **SM-2 算法与返回值语义不变**（Phase 2 的 32 个表征测试为受保护基线，不得放宽）。
+
+**v2 修正（2026-09-21，外部复核 v1 = Changes Requested 的 B-04）:**
+
+- **禁止拼接复习状态（硬性不变式）**：`interval` / `easiness` / `repetitions` / `lastReviewedAt` /
+  `nextReviewAt` 是同一条调度状态的侧面；**绝不**允许从多条复习记录中各取字段组合成"混合状态"，
+  除非存在不变量 / 证明表明该组合有效。没有逐次复习事件历史时，合并后的 SM-2 状态无法被可靠重建。
+- **重复词条的状态冲突处理**：区分三种情况 ——
+  C-0（重复行均无状态）无需迁移；C-1（**恰有一条**有状态）**整条复制**该完整状态；
+  C-2（**两条及以上**有状态）**不自动合并**，标记为迁移冲突，按确定性规则**整条采用**其中一条，
+  或在严重不一致时把该词显式**重置为全新学习状态**（`interval=0` / `easiness=2.5` / `repetitions=0` /
+  `isMastered=false` / `nextReviewAt=今天`）——后者是**合法的新状态**而非历史拼接。
+- **可审计性**：破坏性归并前，所有原始行必须完整存在于备份 / 导出 / 审计证据中；
+  冲突组数量必须在迁移前测量并报告，超出阈值（建议默认 0）即暂停并请求决议。
+
+**v3 修正（2026-09-21，外部复核 v2 = B-05 的连带确认）:**
+
+- **状态粒度保持"一个词一条"**（`LearnerWordReview(userId, wordId)`），
+  即使模型引入了 `WordUsage`。该规则**必须显式写明其后果**：
+  名词条目上的掌握会让同词的动词条目**同样显示为已掌握**；
+  书内进度按条目计数但掌握判定按词，因此可能**高估**按用法的真实掌握度；
+  队列按词调度（同一次调度可能呈现不同用法的卡片）；跨书重叠条目共享同一状态；UI 必须显示当前条目所属用法。
+- **用法级状态（`(userId, wordUsageId)`）继续 defer**，并在文档中给出**触发条件**
+  （可测量证据显示同词不同词性掌握度显著不同，且产品要求展示用法级掌握度）。
+  升级成本低：只需更换状态外键，无需重做身份模型。
+
+**历史理由（v1 —— 与当前决定相反，仅作追溯）:**
+
+- 已核实的当前数据现实：2,849 行中仅 2,704 个不同词形，**119 个词同时属于雅思池与主题包**，
+  **26 个词出现在多个主题**中；当前实现把它们写成不同的 `Word` 行，
+  因而**掌握度会被切碎**（同一词要学多遍）。
+- "掌握度是关于词的记忆状态，不是关于书的"——换书后重新学习是产品缺陷而非特性。
+- 备选方案（按书复制词条 / 按书隔离状态 / 立即使义项级状态）在数据重复、调度数量与认知成本上
+  均劣于本决定；义项级在当前**没有真实需求**。
+
+**历史后续影响（v1 —— 已被当前决定取代）:**
+
+- 迁移阶段需要唯一约束重建与既有全局状态回填（回填到 Phase 6 的过渡默认用户），
+  并需要真实数据库验证（`EVALUATION_BASELINE.md` 迁移验证门）。
+- 迁移期间存在**不可逆**步骤（约束重建 / 重复词条归并），必须配套备份、回滚剧本与审计记录。
+- 本 ADR 不实现任何内容；Phase 7 不修改 schema。
+
+---
+
+## ADR-021: Vocabulary 数据来源、许可证据与可复现导入
+
+**日期:** 2026-09-21
+**状态:** **Accepted**（**2026-09-23 经外部评审 v5 Approved，Blocking Issues: None**；
+由行政收尾命令转为 `Accepted`，口径以 v5 的两轴规则为准）
+**来源:** `docs/refactor/VOCABULARY_DATA_PROVENANCE.md`
+
+**决定:**
+
+1. **词书成员资格必须有来源证据**：来自具备**可读许可 / 条款证据**的数据集，
+   或显式标注为 `legacy / unresolved pending evidence`（现状即属后者）。
+2. **每次导入必须有 manifest**（受版本控制的清单），至少记录：上游身份与 URL、上游版本 / 发布日期、
+   **许可名称与证据 URL**、是否允许再分发与是否需要署名、上游校验和（SHA-256）、
+   importer / 转换版本、规范化与去重规则、校验规则、期望条目数。
+3. **导入必须可拒绝**：manifest 缺少许可字段 → **拒绝导入**（负向校验）。
+4. **导入必须幂等**：以"书 + 版本"为粒度整体替换成员集合，同一 manifest 重复导入结果一致。
+5. **内容字段必须带来源标记**；**AI 生成内容不得作为成员资格权威**
+   （模型无法证明"这个词属于 CET-6"）。
+6. **"公开 GitHub 仓库"不构成许可证据**；不得据此导入数据。
+   ECDICT 的 MIT 许可证覆盖仓库 / 软件，**不**自动证明其汇集自第三方的词条文本可再分发。
+7. 导入结果（版本、校验和、importer 版本、导入数、拒绝数、时间、结果）必须留下可审计记录。
+
+**v2 修正（2026-09-21，外部复核 v1 = Changes Requested 的数据集证据 / 措辞要求）:**
+
+- **已核实的许可证据（第一方原文，2026-09-21）**：NGSL 1.2 与 BSL 1.2 均为
+  **Creative Commons Attribution-ShareAlike 4.0 International**；
+  CEFR-J Wordlist 页面明确"可用于研究与商业用途，条件是正确标注来源"并给出引用格式。
+  上述均属**署名 / 相同方式共享（ShareAlike）**类许可，会约束派生数据的许可选择 → 属产品 / 法务决策。
+- **措辞纪律**：描述第三方数据时使用"**在现有证据下不具备项目导入资格**"、
+  "**未找到经核实的再分发许可**"、"**需要进一步的许可证据**"；
+  **不得**把"未观察到许可"写成"法律上禁止再分发"这类绝对结论，除非权威条款原文明确如此。
+  来源明确允许或禁止某项用途时，**逐字引用其条款并列出条件**。
+- **AI 派生内容的 provenance 最低要求**：必须能区分 `generated` 与 `licensed` / `curated`，
+  并记录生成方（provider / model）、生成管线或 importer 版本、生成时间；
+  **不**保存 prompt 正文、用户私有数据或完整模型响应。
+
+**v3 修正（2026-09-21，外部复核 v2 = B-05 的导入一致性要求）:**
+
+- **导入必须保留来源条目**：身份分三层（`Word` = `wordKey`；`WordUsage` = `(wordId, posKey)`；
+  `BookEntry` = `sourceEntryId` 或书内 `position`），**去重只在该层的真正重复上进行**。
+  明确**移除**对书内条目使用 `by-wordKey-keep-first` 与 `no-duplicate-wordKey` 的规则；
+  同一 `wordKey` 的不同词性（`record` n / v）、不同 `sourceEntryId`、不同等级 **一律保留**。
+- **真重复 vs 非重复的判定**写入文档（含来源用 `"n./v."` 未区分词性时记 `posKey='multi'` 并保留原文、
+  不得自行拆分）。
+- **CEFR-J 证据已逐字取证**（第一方日文原文）：允许研究 / 教育 / 商用（须正确引用），
+  **允许改変为另一份词表但必须正确引用**，涉及其监修参与的商业使用需另行协商并可收费；
+  同时官方明确"同一单词的不同词性为不同条目并赋予不同 CEFR 等级"（B-02 / B-05 的依据）。
+
+**v4 修正（2026-09-23，产品澄清）:**
+
+- **四类来源分离**（取代 v2/v3 的三类）：① **Book membership source**（为什么这个词 / 条目属于这本书）；
+  ② **Lexical source**（词形 / 音标 / 词性 / 释义 / 等级等词汇证据）；
+  ③ **AI enrichment**（AI 生成或改写的学习者可见内容）；④ **Final curated BookEntry**（实际展示版本）。
+  四者都必须可追溯，并且在导入报告里能分别回答"它从哪来"。
+- **来源审批三态**（**文档语言，不是领域实体**）：
+（**v4 时期的单轴三态；已在 v5 拆分为两个正交问题，见下方 v5 修正块**）
+`APPROVED FOR IMPORT` / `RESEARCH / REFERENCE ONLY` / `REJECTED / INSUFFICIENT EVIDENCE`。
+  必须**分别**判断 **member-list suitability** 与 **lexical-enrichment suitability**，
+  并区分 **English lexical evidence** 与 **Chinese learner-facing content**。
+- **AI 富化被明确允许**（产品口径：这是我们自己的结构化数字词书）：AI 可参与释义简化 / 改写、
+  中文解释与翻译辅助、补充例句、搭配、用法辨析、练习、记忆提示；但必须经过**校验门**，
+  并记录 `sourceType`（`ai-assisted` / `ai-generated`）、provider、model、`generatorVersion`、
+  `generatedAt`、`validationStatus`。**不得**伪造来源归属；
+  **不得**把 AI 作为第三方考试词表成员资格的唯一依据（除非该词书本身是我们自研 / 策划并如实标注）；
+  provenance 只需**内容项级**（一条 meaning / 一条 example）可区分，**不要求**逐字段历史链。
+- **v4 新取证（第一方）**：**Open English WordNet** = **CC BY 4.0**
+  （`LICENSE.md` 要求同时署名 Princeton WordNet 与 OEWN 团队）；
+  **FreeDict** 项目级声明为 "truly free（可学习 / 修改 / 分发，须传递同等自由）"，**逐词典许可待核实**。
+- **导入保留来源条目（v3 决定继续有效，口径随 v4 更新）**：
+  身份分两层（`Word` = `wordKey`；来源条目 = `sourceEntryId` 或来源顺序）+ **策划条目**；
+  上游 N 条来源行可映射为 1 条 `BookEntry`（N:1 合法），但每条来源行都必须在
+  `BookEntryMeaning` 上有来源引用。**禁止** `by-wordKey-keep-first` / `no-duplicate-wordKey`
+  作用于来源条目或书内条目。
+
+**v5 修正（2026-09-23，外部复核 v4 = Changes Requested 的 B-08 / B-06）:**
+
+- **把"许可适用性"与"项目导入批准"拆成两个独立问题（B-08）**：
+  **① source eligibility**（现有第一方证据是否**看起来允许**设想的用途，附条件）
+  ∈ `ELIGIBLE` / `CONDITIONAL-INCOMPLETE` / `INSUFFICIENT EVIDENCE`；
+  **② project import approval**（本项目是否已**理解、接受并落实**那些义务）
+  ∈ `APPROVED FOR PRODUCTION IMPORT` / `PENDING PROJECT DECISION` / `NOT APPROVED`。
+  **只要署名 / ShareAlike / 再分发处理仍未落实，来源就只能标 `PENDING PROJECT DECISION`**，
+  **不得**标成"已批准导入"。这是文档状态，**不是**新的领域模型或法律架构。
+- **当前事实（诚实记录）**：目前**没有任何来源**达到 `APPROVED FOR PRODUCTION IMPORT`；
+  NGSL 1.2 / BSL 1.2（CC BY-SA 4.0）、CEFR-J（需引用）、Tatoeba（CC BY 2.0 FR）、
+  Wiktextract（CC BY-SA + GFDL）、OEWN（CC BY 4.0，需双署名）均为
+  `ELIGIBLE + PENDING PROJECT DECISION`（义务未落实）。
+- **署名信息必须可保留（B-08）**：来源派生内容在导入时必须写入
+  `sourceName` / `sourceRef` / `licenseName` / **`attributionText`**，
+  使产品能够履行署名 / 引用义务；缺这些信息的来源派生内容应被拒绝或标记。
+- **措辞纪律继续有效**：保留已核实的第一方许可事实，使用"在现有证据下不具备项目导入资格"
+  "未找到经核实的再分发许可""需要进一步的许可证据"，**不**做无依据的法律结论。
+- **与 B-06 的衔接**：导入协调按稳定 `entryKey` 进行（`UNIQUE(bookId, entryKey)`），
+  重新导入不得删除重建条目；`position` 不是身份。
+
+**理由:**
+
+- 现状的成员资格判定（内联词表 + ECDICT `tag` 含 `ielts`）无法回答"为什么这个词属于雅思"，
+  也无法证明合规（见来源文档 §5–§7）。
+- 已核查的反面证据：`mahavivo/english-wordlists` 自述来源包含商业词典与考试大纲，
+  `kajweb/dict` 自述为爬取商业 App 内容 —— 两者都公开在 GitHub 上，但**都没有**再分发许可。
+- 商业产品（百词斩）自述其释义**取自柯林斯、朗文等授权词典**，说明这类内容的正确路径是授权而非抓取。
+
+**后续影响:**
+
+- 任何 Vocabulary 数据导入 PR 必须引用 ADR-016 第 4 条**与**本 ADR，并附来源 / 许可记录，否则视为超出范围。
+- 许可证据不足的数据只能以 `legacy / unresolved` 标注存在，不得被当作新架构的权威来源。
+- 本 ADR 不导入任何数据；Phase 7 不新增 schema 表。
+
+---
+
+## ADR-022: Phase 8 拆分建议 —— 迁移链修复与 Vocabulary Books 实现分离
+
+**日期:** 2026-09-21
+**状态:** **Accepted 且已激活**（**2026-09-23 经外部评审 v5 Approved，Blocking Issues: None**；
+由行政收尾命令转为 `Accepted`，并**在 canonical 路线图中激活**：Phase 8 = Migration Chain Repair &
+Reproducible Baseline（Ready / Not Started）、Phase 9 = Vocabulary Books Implementation、
+Phase 10 = Themed Packs Convergence，原 Phase 10–15 顺延为 Phase 11–16。
+路线图文件已在本次收尾中同步；**Phase 8 的实现未启动**）
+**来源:** `docs/refactor/VOCABULARY_MIGRATION_STRATEGY.md` §6–§7
+
+**决定（建议）:**
+
+1. 把原 **Phase 8** 拆分为两个独立可审核阶段：
+   - **A. Migration Chain Repair & Reproducible Baseline**：处置损坏的 baseline 迁移
+     （倾向方案：显式 squash 并归档损坏文件字节与 SHA-256），在空库与生产形状克隆库上完成验证；
+     **不含**产品功能；
+   - **B. Vocabulary Books Implementation**：词条身份归并、`VocabularyBook` / `Entry`、
+     学习者归属状态、导入管线 + manifest、选书体验；**在本阶段内**完成迁移正确性验收。
+2. Themed Packs 收敛顺延为后续独立阶段；**Phase 编号不受保护**
+   （`MASTER_PLAN.md`：有界范围与可审核性优先于编号连续性）。
+3. 若治理流程选择**不拆分**，必须满足：两类高风险变更各自产出可独立审核的证据、
+   各自有回滚剧本，且外部评审在结论中显式接受该取舍。
+
+**v2 修正（2026-09-21，外部复核 v1 = Changes Requested 的 B-01）:**
+
+- 阶段 A 的处置必须按 Prisma ORM v7 官方语义在**两条互斥路线**之间明确选择：
+  **路线 A** = 只重建损坏的 baseline 到"当时的历史 schema 点"（保留后续三个迁移；
+  baseline 内容属**推断重建**，必须如此标注）；
+  **路线 B**（推荐）= 有意 **squash 整条历史**为**一份** baseline
+  （`migrate diff --from-empty --to-schema ./prisma/schema.prisma` → 排序最靠前的单目录 →
+  `migrate resolve --applied`）。
+- 若采用路线 B，**被 squash 的历史目录必须归档并移出活动迁移链**；
+  新环境只执行这一份 baseline，其后只追加未来迁移；已有生产形状数据库通过
+  `migrate resolve --applied` 对齐（不重放），生产库 `_prisma_migrations` 中既有的已应用历史仍然保留。
+- **不得**出现"新 baseline 已含当前结构、后续历史迁移又重复创建同一结构"的非法链；
+  官方同时提示 squash 不会保留手工改写的 SQL，因此修复前必须逐文件核对。
+- 详细设计见 `VOCABULARY_MIGRATION_STRATEGY.md` §6.2（含官方文档引用与归档 / 验收要求）。
+
+**v4 确认（2026-09-23，产品澄清后）:**
+
+- 本建议**保持不变**：迁移链修复与 Vocabulary Books 实现是**可独立审核的高风险变更**，
+  应在 Books 实现**之前**拆分（建议编号：Phase 8 = 迁移链修复 / 可复现 baseline，
+  Phase 9 = Vocabulary Books，Phase 10 = Themed Packs），后续阶段顺延。
+- **v4 的产品澄清没有削弱拆分理由**：`BookEntry` 成为学习单位与 SRS 归属、
+  `WordUsage` 被移除之后，Books 阶段的范围仍然很大（条目模型、义项、导入管线、manifest、
+  curation 规则、选书体验、状态迁移），而迁移链修复仍然是它**可独立验证的前置条件**。
+- **本 ADR 仍未生效**：它需要 v4 外部评审 + 用户批准；Phase 7 **不**修改任何路线图文件。
+
+**v5 补充（2026-09-23，外部复核 v4 = B-10）:**
+
+- **拆分的另一个理由：Books 阶段不得提前实现 Packs。** Books 阶段**只**引入正式词书侧模型
+  （`VocabularyBook` / `BookEntry`（稳定 `entryKey`）/ `BookEntryMeaning` / `BookEntryExample` /
+  `LearnerEntryReview`），并**保留**词包当前依赖的 `Word.theme` / `source` / `difficulty`
+  与其运行时 / 遗留 review 路径（标注为 transitional / deprecated）。
+- **词包收敛的全部工作在 Phase 10 完成**：主题 / 生成成员迁移、词包学习状态语义、
+  剩余的跨域 `Word` 身份合并，以及**在词包不再依赖之后**才移除遗留语义。
+- **因此 Books 阶段的验收不得要求跨域全局去重**（例如"2,849 → 2,704"），
+  该目标改为**分阶段达成**（见 `VOCABULARY_MIGRATION_STRATEGY.md` §5.1 与 §8.2 的 V-15 修正）。
+
+**理由:**
+
+- 两类变更的**失败模式**不同：迁移链修复的失败是"无法部署 / 数据库损坏"，影响面最大；
+  Books 实现的失败是被测功能与语义问题，可迭代修正。
+- 需要的**证据类型**不同：前者需要真实数据库上的迁移执行与 schema 比对；后者需要领域与管线测试。
+- A 是 B 的**前置条件**而不是其组成部分（不修复迁移链就无法安全演进 schema）。
+- `MASTER_PLAN.md` 的 R-01 决策门明确要求：若二者是可独立审核的高风险变更，须在实现前拆分。
+
+**后续影响:**
+
+- 若本建议被批准，`MASTER_PLAN.md` / `MIGRATION_PLAN.md` / `PHASE_STATUS.md` 的阶段编号与文本
+  需由**相应的行政收尾命令**更新（不由 Phase 7 执行）。
+- 迁移正确性验收门随阶段归属移动，但**不得**推迟到 Phase 15（`EVALUATION_BASELINE.md`）。
+- 本 ADR 不执行任何拆分，也不修改任何阶段状态。
+
+---
+
+## 路线图编号变更记录（2026-09-23 行政收尾 — 已生效）
+
+**性质:** 文档 / 治理层面的**行政收尾**（不是新的产品决策，也不是 Phase 8 实现）。
+它**执行**了 Phase 7 已作出的出口决策（ADR-022），并同步了所有受影响的 canonical 路线图文档。
+
+**变更内容:**
+
+1. **Phase 7 关闭**：`Vocabulary Platform Design & Data Provenance` → **Completed / Approved**
+   （2026-09-23，外部评审 v5 Approved，Blocking Issues: None）。
+2. **原 Phase 8 拆分并顺延**：
+   - **Phase 8** = `Migration Chain Repair & Reproducible Baseline`（**Ready / Not Started**）
+   - **Phase 9** = `Vocabulary Books Implementation`（Not Started）
+   - **Phase 10** = `Themed Packs Convergence`（Not Started）
+3. **原 Phase 10–15 顺延 +1**（意图、出口条件、安全要求、评估义务**全部保留**）：
+   Reliability/Ownership/Evaluation → **11**；AI Coach Foundation → **12**；
+   Retrieval & Knowledge Engineering → **13**；Agentic AI Coach & Tool System → **14**；
+   MCP Interoperability/AgentOps/Safety → **15**；Production/Benchmark/Portfolio → **16**。
+4. **ADR-019…ADR-022 转为 `Accepted`**（含义以 v5 设计为准）。
+
+**历史处理规则（重要）:**
+
+- Phase 0–7 的已批准含义、编号与历史记录**不改写**；历史审核 / 交接文件保持原样。
+- **历史文档中的旧编号可以保留**，但必须能被识别为历史叙述。具体地：
+  ADR-015 / ADR-016 / ADR-017 / ADR-018 正文中出现的旧编号（例如 "Phase 10 承担评估基础设施"、
+  "Phase 12 检索"）属于**该 ADR 当时**的路线图表述，保留为历史；
+  **当前 / 未来的规范性引用一律使用新编号（Phase 8–16）**，见 `MASTER_PLAN.md`、
+  `PHASE_STATUS.md` 与 `MIGRATION_PLAN.md` 的现行章节。
+- 本次变更**不启动任何阶段**：Phase 8 保持 Ready / Not Started，
+  其执行命令由下一位协调者依据仓库现状重建（`PHASE_EXECUTION_PROTOCOL.md` §4）。

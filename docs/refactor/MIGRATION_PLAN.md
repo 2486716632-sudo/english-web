@@ -4,7 +4,9 @@
 **状态:** 定稿（基于 Phase 1 架构设计）；**Phase 7 及以后已于 2026-09-16 重新基线**。
 **2026-09-20 第二次路线修订（作品集级工程要求 + 重建 Phase 11 之后路线）已于 2026-09-20
 经外部评审 Approved（Blocking Issues: None）并生效**（该修订此前以提案状态送审）；
-其 Phase 10–15 文本现为已生效的权威迁移路径
+**2026-09-23 行政收尾激活阶段拆分**：原 Phase 8 拆分为 Phase 8（迁移链修复）/ Phase 9（Books），
+Phase 10 = Themed Packs；原 Phase 10–15 的**意图与出口条件全部保留**，编号 +1 顺延为 **Phase 11–16**，
+本文件下方章节已按新编号同步
 
 **归属:** 本文件拥有渐进迁移路径。Phase 路线图与核心原则归 `docs/refactor/MASTER_PLAN.md`，
 阶段状态与批准历史归 `docs/refactor/PHASE_STATUS.md`，已接受决策归 `docs/refactor/DECISIONS.md`。
@@ -49,22 +51,30 @@ Phase 7  ─→  Vocabulary 平台设计与数据来源合规（仅证据与设�
    │         ├─ 候选词书数据集调研 + provenance / 许可 / 质量审查
    │         └─ 设计安全迁移策略（含 Prisma 迁移链前置阻塞的处置方向）
    │
-Phase 8  ─→  Vocabulary Books 实现（先解除迁移链前置阻塞，再演进 schema）
+Phase 8  ─→  迁移链修复与可复现基线（**只做迁移治理，不含产品功能**）
+   │         └─ 处置损坏 baseline（路线 B：squash 为一份 baseline + 归档）+ 空库 / 克隆库验证
    │
-Phase 9  ─→  Themed Packs 收敛
+Phase 9  ─→  Vocabulary Books 实现（在已修复的迁移链之上演进 schema）
    │
-Phase 10 ─→  可靠性、归属与评估平台收敛（评估 / 实验基础设施）
+Phase 10 ─→  Themed Packs 收敛（含跨域 Word 收敛与遗留语义移除）
    │
-Phase 11 ─→  AI Coach 基础重构（并建立确定性 Coach 评估基线）
+Phase 11 ─→  可靠性、归属与评估平台收敛（评估 / 实验基础设施）
    │
-Phase 12 ─→  检索与知识工程（设计、实现并评估检索层；RAG 是否进生产由证据决定）
+Phase 12 ─→  AI Coach 基础重构（并建立确定性 Coach 评估基线）
    │
-Phase 13 ─→  Agentic AI Coach 与工具系统（相对确定性基线做对照评估）
+Phase 13 ─→  检索与知识工程（设计、实现并评估检索层；RAG 是否进生产由证据决定）
    │
-Phase 14 ─→  MCP 互操作、AgentOps 与硬化（安全边界已在 Phase 12 / 13 内建立）
+Phase 14 ─→  Agentic AI Coach 与工具系统（相对确定性基线做对照评估）
    │
-Phase 15 ─→  生产、基准与作品集加固
+Phase 15 ─→  MCP 互操作、AgentOps 与硬化（安全边界已在 Phase 13 / 14 内建立）
+   │
+Phase 16 ─→  生产、基准与作品集加固
 ```
+
+> **2026-09-23 行政收尾（Phase 7 → Completed / Approved）已激活阶段拆分**：
+> 原 Phase 8 拆分为 **Phase 8 = 迁移链修复 / 可复现基线** 与 **Phase 9 = Vocabulary Books 实现**，
+> **Phase 10 = Themed Packs 收敛**；原 Phase 10–15 的意图与出口条件**全部保留**，编号 +1 顺延为 11–16。
+> 历史（Phase 2–7）记录不改写。
 
 ---
 
@@ -215,9 +225,9 @@ Step 6: 删除旧 fetch + 超时样板 + JSON 提取代码
 | P7-06 | 现有 IELTS 词库的归属映射方案 | 同上 | 现网数据的迁移映射与保真要求（不执行迁移） |
 | P7-07 | 安全迁移策略前置条件 | 同上 | 记录 `prisma/migrations/20260609000001_baseline/migration.sql` 损坏历史迁移（UTF-16 PowerShell 错误转储）对 schema 演进的阻塞，以及可选的修复路径方向 |
 | P7-08 | 用户学习状态归属设计 | 同上 | `WordReview`（当前 `@@unique([wordId])`，全局单份）的 user-scoped 归属方案（只设计） |
-| P7-09 | **Phase 8 范围 / 拆分决策门** | 同上 | 判定「迁移链修复」与「Vocabulary Books 实现」能否安全留在同一个有界 Phase；若属可独立审核的高风险变更，必须在 Phase 8 实现开始前再次拆分路线图（复审修正 R-01） |
+| P7-09 | **Phase 8 范围 / 拆分决策门** | 同上 | 判定「迁移链修复」与「Vocabulary Books 实现」能否安全留在同一个有界 Phase；**结果：判定为可独立审核的高风险变更 → 拆分已激活**（复审修正 R-01） |
 
-### 出口条件（Phase 7 → Phase 8）
+### 出口条件（Phase 7 → Phase 8）—— **已于 2026-09-23 满足并激活**
 
 Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决策：
 
@@ -226,11 +236,13 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 > roadmap must be split again before Phase 8 implementation starts. Phase numbering is not
 > protected; bounded scope and reviewability take priority.
 
-- 若判定**可以留在同一个有界 Phase**：Phase 8 保持单阶段，但必须把迁移正确性验收纳入该阶段门禁。
-- 若判定**应当拆分**：在 **Phase 8 实现开始之前**重新拆分路线图（走任务书 + 外部审核 + 用户批准），
-  本次修订**不预先新增 Phase 编号**。
+- ✅ **判定结果：应当拆分。** 已在 **Phase 8 实现开始之前**完成拆分（走任务书 + 外部审核 + 用户批准 +
+  2026-09-23 行政收尾）：
+  **Phase 8 = Migration Chain Repair & Reproducible Baseline**（Ready / Not Started）、
+  **Phase 9 = Vocabulary Books Implementation**、**Phase 10 = Themed Packs Convergence**；
+  原 Phase 10–15 顺延为 **Phase 11–16**（意图与出口条件全部保留）。
 - 无论是否拆分，**迁移链修复 / schema 变更所在的那个已批准 Phase 必须自行通过迁移正确性验收**
-（见 `EVALUATION_BASELINE.md` 的迁移验证门），不得把首次验证推迟到 Phase 15。
+（见 `EVALUATION_BASELINE.md` 的迁移验证门），不得把首次验证推迟到 **Phase 16**。
 
 ### 不涉及
 
@@ -241,52 +253,88 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 
 ---
 
-## Phase 8：Vocabulary Books Implementation
+## Phase 8：Migration Chain Repair & Reproducible Baseline
 
 ### 目标
 
-在 Phase 7 已批准的设计之上，落地 **Vocabulary Books** 的生产能力。
-**前置条件：** 先处置阻塞安全 schema 演进的 Prisma 迁移链问题（方向见 Phase 7 P7-07），
-并建立正确的 user-scoped 词汇复习归属。
-**范围门禁（复审修正 R-01）：** 本阶段只有在 Phase 7 判定"迁移链修复 + Books 实现可留在同一个
-有界 Phase"之后才按单阶段执行；否则先按 Phase 7 的出口决策拆分路线图。
+**只做迁移链修复与可复现基线**：处置损坏的历史 baseline，使任何新环境都能从零执行到当前 schema，
+并让已存在的生产形状数据库能够被安全对齐。**本阶段不含任何产品功能**（Books / Packs / UI / 导入都不做）。
 
-### 预期方向（精确 schema 与 UI 变更以未来 Phase 8 任务书 / 设计文档为准）
+**前置条件：** Phase 7 Completed / Approved（2026-09-23）。
+**设计输入：** `VOCABULARY_MIGRATION_STRATEGY.md` §6（含 Prisma ORM v7 baselining / squashing 官方语义与两条路线）。
+
+### 预期方向（精确内容以未来 Phase 8 任务书为准）
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P8-01 | 解除 Prisma 迁移链前置阻塞 | 在独立修复被验证之前，不得声称生产迁移链可用 |
-| P8-02 | user-scoped 词汇复习归属 | `WordReview` 从全局单份演进为按用户归属 |
-| P8-03 | 已批准的 Vocabulary Book 模型 | 只实现 Phase 7 已批准的形状 |
-| P8-04 | 已批准的数据导入管线 | 只导入通过 provenance / 许可 / 质量审查的数据集 |
-| P8-05 | 选书体验 | 用户可选择的词书入口 |
-| P8-06 | 保持已验证的 SM-2 行为 | Phase 2 受保护基线不得放宽 |
-| P8-07 | 跨词书重叠词的处理 | 同一 `Word` 出现在多本词书时的行为必须有明确语义 |
-| P8-08 | **迁移正确性与可复现性验收门（本阶段内）** | 只要本阶段修复迁移链或变更 `schema.prisma` / migrations，就必须在同一阶段用真实数据库验证迁移正确性与可复现性；**不得**推迟到 Phase 15 |
+| P8-01 | 处置损坏 baseline | 推荐**路线 B**：按官方 squash 语义把整条历史压缩为**一份**代表当前 schema 的 baseline；被移除的历史目录**归档出活动迁移链** |
+| P8-02 | 历史证据保留 | 归档被 squash / 替换迁移的**逐文件 SHA-256 与内容摘要**；保留损坏文件的原始字节与哈希（`6B90BC5ACD5A94A8…`） |
+| P8-03 | 空库验证 | 在隔离空库上从零执行全部迁移并成功；在第二个空库复现（可重放 / 幂等） |
+| P8-04 | 生产形状克隆验证 | 在脱敏克隆库上 `migrate deploy` 后与 `prisma/schema.prisma` **双向 `migrate diff` 为空** |
+| P8-05 | 基线对齐 | 对已存在的生产形状库使用 `migrate resolve --applied` 标记基线已应用（**不重放**）；核对 `_prisma_migrations` 状态 |
+| P8-06 | 回滚剧本 | 前滚 / 回滚步骤（Neon 分支或备份恢复）与演练记录 |
+| P8-07 | **迁移正确性验收门（本阶段内）** | 上述验证即本阶段验收门禁；**不得**推迟到 Phase 16 |
+
+### 不涉及
+
+- ❌ 不引入任何产品功能（Vocabulary Books 模型 / UI / 导入管线 / 选书体验）
+- ❌ 不改 SRS 行为、不迁移或删除任何 Vocabulary / Review 数据
+- ❌ 不提前实现 Phase 9 或 Phase 10 的工作
+- ❌ 不声称部署就绪而未完成上述真实验证
 
 ---
 
-## Phase 9：Themed Packs Convergence
+## Phase 9：Vocabulary Books Implementation
+
+### 目标
+
+在 Phase 7 已批准的设计与 Phase 8 已修复的迁移链之上，落地 **Vocabulary Books** 的生产能力。
+**前置条件：** Phase 8 Approved（迁移链可复现）。
+**设计输入：** `VOCABULARY_PLATFORM_DESIGN.md`（v5）、`VOCABULARY_DATA_PROVENANCE.md`（v5）、
+`VOCABULARY_MIGRATION_STRATEGY.md` §5.1（过渡期范围）。
+
+### 预期方向（精确 schema 与 UI 变更以未来 Phase 9 任务书 / 设计文档为准）
+
+| # | 方向 | 说明 |
+|---|------|------|
+| P9-01 | `VocabularyBook` / `BookEntry` 模型 | 条目必须有**稳定 `entryKey`**（`UNIQUE(bookId, entryKey)`）；`position` **仅排序** |
+| P9-02 | 条目内容 | 从属 `BookEntryMeaning`（规范释义 / 目标词性 / 义项级音标 / 书内搭配 / 翻译 + 来源 / 校验）与 `BookEntryExample`；**禁止隐式通用回退**（`fallbackPolicy` 默认 `none`） |
+| P9-03 | user-scoped 学习归属 | `LearnerEntryReview(userId, bookEntryId)`；**不做**跨书同步 / 传播 / 合并 / 迁移评分 |
+| P9-04 | 已批准的数据导入管线 | 只导入通过 provenance / 许可**与项目批准**审查的数据集；manifest 记录 `entryKey` 规则、curation 规则、署名信息；按 `entryKey` 协调（不删除重建） |
+| P9-05 | 选书体验 | 用户可选择的词书入口 |
+| P9-06 | 保持已验证的 SM-2 行为 | Phase 2 受保护基线不得放宽 |
+| P9-07 | 跨词书重叠条目语义 | 同一拼写在不同书里是**不同条目、各自独立状态**；用户可自行标记已掌握 |
+| P9-08 | **过渡期范围（B-10）** | **只迁正式词书侧**；**保留** Theme / generated 行、其遗留运行时与遗留 `WordReview` 路径（标注 transitional / deprecated） |
+| P9-09 | **迁移正确性与可复现性验收门（本阶段内）** | 若本阶段变更 `schema.prisma` / migrations，必须在同一阶段用真实数据库验证；**不得**推迟到 Phase 16 |
+
+---
+
+## Phase 10：Themed Packs Convergence
 
 ### 目标
 
 把 Themed Packs 收敛到已批准的架构，同时**保持 Default Packs 与用户创建 Custom Packs
-是两种不同的产品行为**。
+是两种不同的产品行为**；并在此阶段完成**跨域 `Word` 收敛**与**遗留语义移除**。
 
 ### 预期方向
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P9-01 | 保持 Default / Custom 产品差异 | 不把两类 pack 压成一个通用抽象 |
-| P9-02 | 自定义 pack 生成迁移到已批准架构 | 当前 `words/themes/generate` 的三步内联 DeepSeek 调用是遗留直连调用 |
-| P9-03 | 自定义 pack 的用户归属 | 自定义 pack 需要正确的所有权语义 |
-| P9-04 | 遗留 AI 调用经已批准 AI 基础设施 | 通过 `AIClientPort`，不得在业务代码中直接 `fetch` provider |
-| P9-05 | pack 进度语义 | 确定 durable progress 语义（只实现已被批准的语义） |
-| P9-06 | 迁移期间保持现有功能可用 | 渐进迁移，不推倒重写 |
+| P10-01 | 保持 Default / Custom 产品差异 | 不把两类 pack 压成一个通用抽象 |
+| P10-02 | 主题 / 生成成员迁移 | default / generated 成员迁移到 `VocabularyPack` / `VocabularyPackEntry` |
+| P10-03 | 自定义 pack 的用户归属 | 自定义 pack 需要正确的所有权语义（`ownerUserId`） |
+| P10-04 | 遗留 AI 调用经已批准 AI 基础设施 | 通过 `AIClientPort`，不得在业务代码中直接 `fetch` provider |
+| P10-05 | pack 学习状态语义 | 定义并迁移词包的学习状态语义（不与书同步） |
+| P10-06 | 跨域 `Word` 收敛 | 在安全时执行剩余的跨域 `Word` 身份合并（**长期目标，增量达成**） |
+| P10-07 | 遗留语义移除 | **只有**在词包不再依赖之后，才移除 `Word.theme` / `source` / `difficulty` 与遗留 review 路径 |
+| P10-08 | 迁移期间保持现有功能可用 | 渐进迁移，不推倒重写；行为保真回归 |
 
 ---
 
-## Phase 10：Reliability, Ownership & Evaluation Platform Convergence
+## Phase 11：Reliability, Ownership & Evaluation Platform Convergence
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 10；阶段拆分激活后顺延为 **Phase 11**。
+> 任务编号前缀由 `P10-xx` 改为 **`P11-xx`**，内容与出口条件**逐条保留**。
 
 ### 目标
 
@@ -298,69 +346,75 @@ Phase 7 的出口**不是**"设计文档写完"，而是一个显式的架构决
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P10-01 | 剩余 learner ownership 缺口 | 例如 `Article.readAt/favoritedAt`、`ListeningScene.playedAt`、`DailyProgress`、localStorage 偏好 |
-| P10-02 | 真实数据库 / 集成 / E2E 测试 | 用隔离数据库 + Playwright，而非脚本化冒烟 |
-| P10-03 | CI 质量门禁 | 把类型检查 / 测试 / lint / build 纳入可重复的门禁 |
-| P10-04 | 安全与授权边界 | 输入验证、鉴权、CORS、未配置 API Key 的 pre-flight 校验 |
-| P10-05 | 有理由的遗留架构收敛 | 只在有真实理由时收敛遗留代码 |
-| P10-06 | **评估 harness 基础设施** | 可复用的 golden-set / fixture 运行器与报告约定，供后续 Phase 复用 |
-| P10-07 | **golden-set / fixture 约定** | 固定评估数据集的组织、命名、版本与不变量 |
-| P10-08 | **实验记录约定** | Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Limitation → Decision |
-| P10-09 | **生产风格 trace / metrics 导出策略** | 在 Phase 5 已批准 Trace 之上，明确持久化 / 聚合 / 导出的**策略与边界**（具体实现按需） |
-| P10-10 | **延迟 / 错误 / token / 成本测量约定** | 统一可测量的调用指标口径，供 Retrieval / Agent 对比 |
+| P11-01 | 剩余 learner ownership 缺口 | 例如 `Article.readAt/favoritedAt`、`ListeningScene.playedAt`、`DailyProgress`、localStorage 偏好 |
+| P11-02 | 真实数据库 / 集成 / E2E 测试 | 用隔离数据库 + Playwright，而非脚本化冒烟 |
+| P11-03 | CI 质量门禁 | 把类型检查 / 测试 / lint / build 纳入可重复的门禁 |
+| P11-04 | 安全与授权边界 | 输入验证、鉴权、CORS、未配置 API Key 的 pre-flight 校验 |
+| P11-05 | 有理由的遗留架构收敛 | 只在有真实理由时收敛遗留代码 |
+| P11-06 | **评估 harness 基础设施** | 可复用的 golden-set / fixture 运行器与报告约定，供后续 Phase 复用 |
+| P11-07 | **golden-set / fixture 约定** | 固定评估数据集的组织、命名、版本与不变量 |
+| P11-08 | **实验记录约定** | Hypothesis → Baseline → Candidate → Dataset → Metrics → Result → Limitation → Decision |
+| P11-09 | **生产风格 trace / metrics 导出策略** | 在 Phase 5 已批准 Trace 之上，明确持久化 / 聚合 / 导出的**策略与边界**（具体实现按需） |
+| P11-10 | **延迟 / 错误 / token / 成本测量约定** | 统一可测量的调用指标口径，供 Retrieval / Agent 对比 |
 
 ### 范围 / 拆分决策门（R-03，本阶段内）
 
-加强后的 Phase 10 同时承担两条**互相独立的高风险工作流**：
+加强后的 Phase 11（原 Phase 10）同时承担两条**互相独立的高风险工作流**：
 
 - **A. Reliability / Ownership / Architecture convergence**（P10-01…P10-05）；
 - **B. Evaluation Platform foundation**（P10-06…P10-10）。
 
-> Phase 10 must determine whether (A) Reliability / Ownership / Architecture convergence and
+> Phase 11 must determine whether (A) Reliability / Ownership / Architecture convergence and
 > (B) Evaluation Platform foundation can safely remain one bounded Phase. If they are
-> independently reviewable high-risk workstreams, the roadmap must be split before Phase 10
+> independently reviewable high-risk workstreams, the roadmap must be split before Phase 11
 > implementation starts. Phase numbering is not protected; bounded scope and reviewability
 > take priority.
 
-该判定由 **Phase 10 的已批准任务书 / 外部评审**产出（本次修订不新增 Phase 编号、不预先拆分）；
-若判定应拆分，则在 Phase 10 实现开始前走正常治理流程后拆分。
+该判定由 **Phase 11 的已批准任务书 / 外部评审**产出（本次修订不新增 Phase 编号、不预先拆分）；
+若判定应拆分，则在 Phase 11 实现开始前走正常治理流程后拆分。
 
 ### 不涉及
 
 - ❌ 不做机会主义式的大范围重写
 - ❌ **不**在本阶段构建最终 Agent（本阶段的目的是让**后续 AI 实验可测量**）
-- ❌ **不**在本修订中预先拆分 Phase 10（拆分由上述决策门判定）
+- ❌ **不**在本修订中预先拆分 Phase 11（拆分由上述决策门判定）
 
 ---
 
-## Phase 11：AI Coach Foundation Refactor
+## Phase 12：AI Coach Foundation Refactor
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 11；顺延为 **Phase 12**，
+> 任务编号前缀由 `P11-xx` 改为 **`P12-xx`**，内容与出口条件**逐条保留**。
 
 ### 目标
 
 在引入任何高级 Agent 基础设施**之前**，先把既有 AI Coach 重构到已批准架构，
-并产出**确定性 Coach 评估基线**，供 Phase 12（检索）与 Phase 13（Agent）对比。
+并产出**确定性 Coach 评估基线**，供 Phase 13（检索）与 Phase 14（Agent）对比。
 **原则不变：先重构 Coach，再 Agent 化 Coach。**
 
 ### 预期方向
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P11-01 | 明确 Application / Domain 边界 | 把业务规则与编排从 Route / 组件中分离 |
-| P11-02 | durable Coach session / state 语义 | 仅在确有理由时建立 |
-| P11-03 | 遗留直连模型调用迁移 | 经已批准的 `AIClientPort` 路径 |
-| P11-04 | 过大的 UI / Application 职责拆分 | 按职责分解，不改变产品行为 |
-| P11-05 | 保持当前 Coach 行为可用 | 重构期间行为保持；不再依赖「冻结」作为唯一保护 |
-| P11-06 | **显式 Tool 契约 / 能力边界（若有用）** | 在有意义处定义清晰的 capability 边界，供后续阶段复用 |
-| P11-07 | **Coach 评估数据集 / golden set** | 建立确定性 Coach 基线数据集 |
-| P11-08 | **确定性基线测量** | 产出 Phase 12 / Phase 13 可与之对比的确定性基线测量 |
+| P12-01 | 明确 Application / Domain 边界 | 把业务规则与编排从 Route / 组件中分离 |
+| P12-02 | durable Coach session / state 语义 | 仅在确有理由时建立 |
+| P12-03 | 遗留直连模型调用迁移 | 经已批准的 `AIClientPort` 路径 |
+| P12-04 | 过大的 UI / Application 职责拆分 | 按职责分解，不改变产品行为 |
+| P12-05 | 保持当前 Coach 行为可用 | 重构期间行为保持；不再依赖「冻结」作为唯一保护 |
+| P12-06 | **显式 Tool 契约 / 能力边界（若有用）** | 在有意义处定义清晰的 capability 边界，供后续阶段复用 |
+| P12-07 | **Coach 评估数据集 / golden set** | 建立确定性 Coach 基线数据集 |
+| P12-08 | **确定性基线测量** | 产出 Phase 13 / Phase 14 可与之对比的确定性基线测量 |
 
 ### 不涉及
 
-- ❌ Phase 11 **不得**悄悄实现完整的 Agent runtime
+- ❌ Phase 12 **不得**悄悄实现完整的 Agent runtime
 
 ---
 
-## Phase 12：Retrieval & Knowledge Engineering
+## Phase 13：Retrieval & Knowledge Engineering
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 12；顺延为 **Phase 13**，
+> 任务编号前缀由 `P12-xx` 改为 **`P13-xx`**，内容、安全门与出口条件**逐条保留**。
 
 ### 目标
 
@@ -397,7 +451,7 @@ P50 / P95 检索延迟、token 影响、可测量的金钱成本。
 ### 检索最小安全验收标准（R-02，本阶段内）
 
 只要本阶段引入检索，就同时引入了新的风险，因此**检索的最小安全边界必须在同一 Phase 内建立**
-（这是最小正确性 / 安全门，**不是**把 Phase 12 变成完整安全 Phase）：
+（这是最小正确性 / 安全门，**不是**把 Phase 13 变成完整安全 Phase）：
 
 - 检索到的内容被当作**不可信数据（untrusted data）**，而非系统权威（system authority）；
 - 记录 **provenance / 来源元数据**；
@@ -413,15 +467,18 @@ P50 / P95 检索延迟、token 影响、可测量的金钱成本。
 
 ---
 
-## Phase 13：Agentic AI Coach & Tool System
+## Phase 14：Agentic AI Coach & Tool System
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 13；顺延为 **Phase 14**，
+> 任务编号前缀由 `P13-xx` 改为 **`P14-xx`**，内容、入口门与安全要求**逐条保留**。
 
 ### 目标
 
 只有在以下前提满足之后，才把**真正的模型驱动动态行为**引入 AI Coach：
 
-- Coach 架构已经干净（Phase 11）；
-- 已有基线评估（Phase 11）；
-- 检索行为已经被理解（Phase 12）。
+- Coach 架构已经干净（Phase 12）；
+- 已有基线评估（Phase 12）；
+- 检索行为已经被理解（Phase 13）。
 
 默认先做**有界的单一 Agent**。**不**为了架构外观引入 Multi-Agent。
 
@@ -431,7 +488,7 @@ P50 / P95 检索延迟、token 影响、可测量的金钱成本。
 
 1. 无法充分预定的**具体决策 / 路径 / 工具 / 动作选择**；
 2. 为什么**确定性 Workflow 不足以**支撑该有界行为；
-3. 用于对比的**确定性基线**（来自 Phase 11）。
+3. 用于对比的**确定性基线**（来自 Phase 12）。
 
 若 AI Coach **不存在**合法的动态决策问题：**不得制造虚假的 Agent 自主性**——
 要么识别另一个与产品一致的有界 Agent 用例，要么通过正常治理流程提出路线图 / 标准修订。
@@ -441,15 +498,15 @@ P50 / P95 检索延迟、token 影响、可测量的金钱成本。
 
 | # | 方向 | 说明 |
 |---|------|------|
-| P13-01 | 只做真正动态的决策 | 确定性步骤继续用 Workflow |
-| P13-02 | allowlisted tool registry | 只暴露已批准的能力 |
-| P13-03 | tool schemas / tool-result 处理 | 工具契约明确、可审核 |
-| P13-04 | loop / stopping conditions | 明确的循环与停止条件 |
-| P13-05 | retry / failure 行为 | 有界的重试与失败处理 |
-| P13-06 | budgets / limits | 预算与上限（步数 / 时间 / token / 成本） |
-| P13-07 | context management | 有界的上下文管理 |
-| P13-08 | safe read/write 区分 | 读 / 写能力边界清晰 |
-| P13-09 | 保留非 Agent / 手动 Coach 体验 | 用户可见功能不依赖 Agent |
+| P14-01 | 只做真正动态的决策 | 确定性步骤继续用 Workflow |
+| P14-02 | allowlisted tool registry | 只暴露已批准的能力 |
+| P14-03 | tool schemas / tool-result 处理 | 工具契约明确、可审核 |
+| P14-04 | loop / stopping conditions | 明确的循环与停止条件 |
+| P14-05 | retry / failure 行为 | 有界的重试与失败处理 |
+| P14-06 | budgets / limits | 预算与上限（步数 / 时间 / token / 成本） |
+| P14-07 | context management | 有界的上下文管理 |
+| P14-08 | safe read/write 区分 | 读 / 写能力边界清晰 |
+| P14-09 | 保留非 Agent / 手动 Coach 体验 | 用户可见功能不依赖 Agent |
 
 ### 评估要求
 
@@ -457,14 +514,14 @@ P50 / P95 检索延迟、token 影响、可测量的金钱成本。
 unnecessary-tool-call rate、trajectory length、recovery from tool / model failure、
 latency、token / cost impact。
 
-**最重要的要求：把 Agentic Coach 行为与 Phase 11 的确定性 Coach 基线做对比。**
+**最重要的要求：把 Agentic Coach 行为与 Phase 12 的确定性 Coach 基线做对比。**
 目标是回答：**“Agent 自主性究竟改善了什么，又让什么变差了？”**
 
 > 若 Agent 自主性并未改善某个 workflow，就保留确定性 workflow。
 
 ### 最小 Agent / tool 安全（R-02，本阶段内）
 
-这些最小控制**必须在 Phase 13 内建立**，**不得**推迟到 Phase 14：
+这些最小控制**必须在 Phase 14 内建立**，**不得**推迟到 Phase 15：
 
 - allowlisted tools（allowlist 工具注册表）；
 - 权威用户身份 / **user isolation**；
@@ -479,11 +536,13 @@ latency、token / cost impact。
 
 - ❌ 不承诺 Multi-Agent、LangGraph、向量数据库或 fine-tuning 作为必需交付物
 - ❌ 不设立网站级 / master Learning Path Agent
-- ❌ 不把上述最小 Agent / tool 安全推迟到 Phase 14
+- ❌ 不把上述最小 Agent / tool 安全推迟到 Phase 15
 
 ---
 
-## Phase 14：MCP Interoperability, AgentOps & Safety
+## Phase 15：MCP Interoperability, AgentOps & Safety
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 14；顺延为 **Phase 15**，内容**逐条保留**。
 
 ### 目标
 
@@ -514,7 +573,7 @@ MCP 必须有一个真实的互操作故事，例如：
 
 ### MCP 专属与生产风格硬化（安全硬化，**不是**首次安全边界）
 
-检索最小安全（Phase 12）与最小 Agent / tool 安全（Phase 13）已在**引入风险的同一 Phase**
+检索最小安全（Phase 13）与最小 Agent / tool 安全（Phase 14）已在**引入风险的同一 Phase**
 内建立。本阶段**不**承担这些安全边界的首次建立，而是做 MCP 专属与生产风格硬化，例如：
 
 - 外部客户端 / **协议授权**（external-client / protocol authorization）；
@@ -527,7 +586,10 @@ MCP 必须有一个真实的互操作故事，例如：
 
 ---
 
-## Phase 15：Production, Benchmark & Portfolio Hardening
+## Phase 16：Production, Benchmark & Portfolio Hardening
+
+> **编号说明（2026-09-23 行政收尾）:** 本节原为 Phase 15；顺延为 **Phase 16**，
+> 任务编号前缀由 `P15-xx` 改为 **`P16-xx`**，内容与出口条件**逐条保留**。
 
 ### 目标
 
@@ -538,19 +600,19 @@ MCP 必须有一个真实的互操作故事，例如：
 
 | # | 任务 | 涉及文件 | 说明 |
 |---|------|---------|------|
-| P15-01 | 部署与环境配置 | `Dockerfile`, `.env.example`, `vercel.json` 等 | 根据目标平台配置部署 |
-| P15-02 | 认证 / 授权的**生产化复验与最终加固** | API 路由、环境变量、CORS、身份边界 | 基础安全 / 授权边界由 **Phase 10** 建立；本阶段只做部署级复验与加固，**不得**成为这些基础控制的首次实现点 |
-| P15-03 | CI/CD | 流水线配置 | 可重复的构建 / 测试 / 部署 |
-| P15-04 | 生产可观测性 | Trace / 日志 / metrics 的持久化或外部平台接入 | 仅在确有需要时 |
-| P15-05 | 迁移完整性**复验** | `prisma/migrations/**` | 在**全新环境**上复验部署、迁移执行、备份 / 回滚与生产就绪；这是**复验**，正确性首次建立点必须早于本阶段（见 `EVALUATION_BASELINE.md` 迁移验证门） |
-| P15-06 | 备份 / 回滚就绪（适当处） | 运维文档 / 脚本 | 生产风险控制 |
-| P15-07 | 演示 / 种子数据准备 | 种子脚本或 fixture | 方便审查者快速体验 |
-| P15-08 | README 完善 | `README.md` | 项目简介、架构、快速开始 |
-| P15-09 | 架构图生成 | `docs/architecture-diagram.png` | 基于 TARGET_ARCHITECTURE.md 的可视化 |
-| P15-10 | 威胁 / 安全文档（适当处） | `docs/` | 记录并汇总各 Phase 已建立的安全 / 权限模型（不是首次建立） |
-| P15-11 | **基准 / 实验汇总** | `docs/` | 汇总 Phase 12 / 13 / 14 的实验结论与基准表 |
-| P15-12 | 作品集案例研究 + 面试指南 + demo 脚本 | `docs/portfolio/`, `docs/interview-guide.md` | 架构、trade-off、失败与测量 |
-| P15-13 | 最终端到端验证 | — | 全量回归 + 真实环境验证 |
+| P16-01 | 部署与环境配置 | `Dockerfile`, `.env.example`, `vercel.json` 等 | 根据目标平台配置部署 |
+| P16-02 | 认证 / 授权的**生产化复验与最终加固** | API 路由、环境变量、CORS、身份边界 | 基础安全 / 授权边界由 **Phase 11** 建立；本阶段只做部署级复验与加固，**不得**成为这些基础控制的首次实现点 |
+| P16-03 | CI/CD | 流水线配置 | 可重复的构建 / 测试 / 部署 |
+| P16-04 | 生产可观测性 | Trace / 日志 / metrics 的持久化或外部平台接入 | 仅在确有需要时 |
+| P16-05 | 迁移完整性**复验** | `prisma/migrations/**` | 在**全新环境**上复验部署、迁移执行、备份 / 回滚与生产就绪；这是**复验**，正确性首次建立点必须早于本阶段（见 `EVALUATION_BASELINE.md` 迁移验证门） |
+| P16-06 | 备份 / 回滚就绪（适当处） | 运维文档 / 脚本 | 生产风险控制 |
+| P16-07 | 演示 / 种子数据准备 | 种子脚本或 fixture | 方便审查者快速体验 |
+| P16-08 | README 完善 | `README.md` | 项目简介、架构、快速开始 |
+| P16-09 | 架构图生成 | `docs/architecture-diagram.png` | 基于 TARGET_ARCHITECTURE.md 的可视化 |
+| P16-10 | 威胁 / 安全文档（适当处） | `docs/` | 记录并汇总各 Phase 已建立的安全 / 权限模型（不是首次建立） |
+| P16-11 | **基准 / 实验汇总** | `docs/` | 汇总 Phase 13 / 14 / 15 的实验结论与基准表 |
+| P16-12 | 作品集案例研究 + 面试指南 + demo 脚本 | `docs/portfolio/`, `docs/interview-guide.md` | 架构、trade-off、失败与测量 |
+| P16-13 | 最终端到端验证 | — | 全量回归 + 真实环境验证 |
 
 ### 不涉及
 
@@ -575,7 +637,7 @@ MCP 必须有一个真实的互操作故事，例如：
 > **post-Phase-6 说明（2026-09-16）。** 上表的"迁移优先级"列表达的是 **Phase 1 视角的
 > AI 调用迁移优先级**，它**不等于**产品优先级。产品优先级已重新基线：
 > **Vocabulary 是下一个产品优先级（Phase 7–9）**，而 **AI Coach 的 Agentic 工作被延后
-> 到 Phase 11（基础重构）/ Phase 13（Agentic）**。冻结模块的保护语义也随之明确为"默认冻结，需当前已批准 Phase 任务书
+> 到 Phase 12（基础重构）/ Phase 14（Agentic）**。冻结模块的保护语义也随之明确为"默认冻结，需当前已批准 Phase 任务书
 > 加用户明确授权才可限定修改"，见 `CLAUDE.md` 与 `DECISIONS.md` ADR-015。
 
 ---
